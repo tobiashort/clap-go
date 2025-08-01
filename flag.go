@@ -15,6 +15,7 @@ type flag struct {
 	short         string
 	long          string
 	conflictsWith []string
+	mandatory     bool
 }
 
 func Parse(v any) {
@@ -33,6 +34,7 @@ func Parse(v any) {
 		long := strings.ToLower(field.Name)
 		short := string(strings.ToLower(field.Name)[0])
 		conflictsWith := make([]string, 0)
+		mandatory := false
 
 		tag := field.Tag.Get("flag")
 		if tag != "" {
@@ -43,6 +45,8 @@ func Parse(v any) {
 					long = strings.Split(tagValue, "=")[1]
 				} else if strings.HasPrefix(tagValue, "conflicts-with=") {
 					conflictsWith = strings.Split(strings.Split(tagValue, "=")[1], ",")
+				} else if tagValue == "mandatory" {
+					mandatory = true
 				} else {
 					panic("unkown tag value: " + tagValue)
 				}
@@ -56,6 +60,7 @@ func Parse(v any) {
 			long:          long,
 			short:         short,
 			conflictsWith: conflictsWith,
+			mandatory:     mandatory,
 		})
 	}
 
@@ -112,6 +117,7 @@ func Parse(v any) {
 	}
 
 	checkForConflicts(providedFlags)
+	checkForMissingMandatoryFlags(flags, providedFlags)
 }
 
 func parseString(i int, v any, name string) {
@@ -195,6 +201,20 @@ func checkForConflicts(providedFlags []flag) {
 					panic(fmt.Sprintf("conflicting flags: --%s (-%s), --%s (-%s)", outerFlag.long, outerFlag.short, innerFlag.long, innerFlag.short))
 				}
 			}
+		}
+	}
+}
+
+func checkForMissingMandatoryFlags(flags []flag, providedFlags []flag) {
+outer:
+	for _, flag := range flags {
+		if flag.mandatory {
+			for _, providedFlag := range providedFlags {
+				if providedFlag.name == flag.name {
+					continue outer
+				}
+			}
+			panic(fmt.Sprintf("missing mandatory flag: --%s (-%s)", flag.long, flag.short))
 		}
 	}
 }
