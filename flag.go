@@ -9,11 +9,12 @@ import (
 )
 
 type flag struct {
-	name  string
-	type_ reflect.Type
-	kind  reflect.Kind
-	short string
-	long  string
+	name          string
+	type_         reflect.Type
+	kind          reflect.Kind
+	short         string
+	long          string
+	conflictsWith []string
 }
 
 func Parse(v any) {
@@ -31,6 +32,7 @@ func Parse(v any) {
 
 		long := strings.ToLower(field.Name)
 		short := string(strings.ToLower(field.Name)[0])
+		conflictsWith := make([]string, 0)
 
 		tag := field.Tag.Get("flag")
 		if tag != "" {
@@ -39,6 +41,8 @@ func Parse(v any) {
 					short = strings.Split(tagValue, "=")[1]
 				} else if strings.HasPrefix(tagValue, "long=") {
 					long = strings.Split(tagValue, "=")[1]
+				} else if strings.HasPrefix(tagValue, "conflicts-with=") {
+					conflictsWith = strings.Split(strings.Split(tagValue, "=")[1], ",")
 				} else {
 					panic("unkown tag value: " + tagValue)
 				}
@@ -46,15 +50,18 @@ func Parse(v any) {
 		}
 
 		flags = append(flags, flag{
-			name:  field.Name,
-			type_: field.Type,
-			kind:  field.Type.Kind(),
-			long:  long,
-			short: short,
+			name:          field.Name,
+			type_:         field.Type,
+			kind:          field.Type.Kind(),
+			long:          long,
+			short:         short,
+			conflictsWith: conflictsWith,
 		})
 	}
 
 	checkForNameCollisions(flags)
+
+	providedFlags := make([]flag, 0)
 
 	for i := 1; i < len(os.Args); i++ {
 		arg := os.Args[i]
@@ -64,6 +71,8 @@ func Parse(v any) {
 			flag, ok := getFlagByLongName(flags, name)
 			if !ok {
 				panic("unknown flag: " + name)
+			} else {
+				providedFlags = append(providedFlags, flag)
 			}
 			if flag.kind == reflect.Bool {
 				setBool(v, flag.name, true)
@@ -82,6 +91,8 @@ func Parse(v any) {
 			flag, ok := getFlagByShortName(flags, name)
 			if !ok {
 				panic("unknown flag: " + name)
+			} else {
+				providedFlags = append(providedFlags, flag)
 			}
 			if flag.kind == reflect.Bool {
 				setBool(v, flag.name, true)
@@ -99,6 +110,8 @@ func Parse(v any) {
 			panic("not implemented")
 		}
 	}
+
+	checkForConflicts(providedFlags)
 }
 
 func parseString(i int, v any, name string) {
@@ -170,6 +183,18 @@ func checkForNameCollisions(flags []flag) {
 			seen[flag.short] = true
 		} else {
 			panic(fmt.Sprintf("flag name collision: %s: %s", flag.name, flag.short))
+		}
+	}
+}
+
+func checkForConflicts(providedFlags []flag) {
+	for _, outerFlag := range providedFlags {
+		for _, inConflict := range outerFlag.conflictsWith {
+			for _, innerFlag := range providedFlags {
+				if innerFlag.name == inConflict {
+					panic(fmt.Sprintf("conflicting flags: --%s (-%s), --%s (-%s)", outerFlag.long, outerFlag.short, innerFlag.long, innerFlag.short))
+				}
+			}
 		}
 	}
 }
