@@ -7,7 +7,7 @@ import (
 )
 
 type Args struct {
-	Name     string
+	Name     string `flag:"long=full-name"`
 	Age      int
 	Sex      string
 	Employed bool
