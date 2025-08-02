@@ -14,8 +14,8 @@ type Args struct {
 	PartTime    bool     `flag:"short=P,long=part-time,description='Mark as part-time employee'"`
 	Salary      int      `flag:"long=salary,description='Starting salary in USD'"`
 	NotifyTeams []string `flag:"long=notify,short=N,description='Slack team channels to notify (e.g., #eng, #ops)'"`
+	EmployeeID  string   `flag:"positional,mandatory,description='Unique employee ID'"`
 	Department  string   `flag:"positional,description='Department name (e.g., Engineering, HR)'"`
-	EmployeeID  string   `flag:"positional,short=i,description='Unique employee ID'"`
 }
 
 func main() {

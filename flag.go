@@ -2,7 +2,9 @@ package flag
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -77,9 +79,20 @@ func Parse(strct any) {
 		})
 	}
 
+	implicitHelpFlag := flag{
+		name:        "Help",
+		type_:       reflect.TypeOf(true),
+		kind:        reflect.Bool,
+		long:        "help",
+		short:       "h",
+		description: "Show this help message and exit",
+	}
+
+	allFlags = append(allFlags, implicitHelpFlag)
+
 	checkForNameCollisions(allFlags)
 
-	providedFlags := make([]flag, 0)
+	nonPositionalFlags := make([]flag, 0)
 
 	positionalFlagIndex := 0
 	positionalFlags := make([]flag, 0)
@@ -93,20 +106,28 @@ func Parse(strct any) {
 		arg := os.Args[i]
 		if strings.HasPrefix(arg, "--") {
 			long := arg[2:]
+			if long == "help" {
+				printHelp(allFlags, os.Stdout)
+				os.Exit(0)
+			}
 			flag, ok := getFlagByLongName(allFlags, long)
 			if !ok {
 				panic("unknown flag: --" + long)
 			} else {
-				providedFlags = append(providedFlags, flag)
+				nonPositionalFlags = append(nonPositionalFlags, flag)
 			}
 			i = parseNonPositional(flag, strct, i)
 		} else if strings.HasPrefix(arg, "-") {
 			short := arg[1:]
+			if short == "h" {
+				printHelp(allFlags, os.Stdout)
+				os.Exit(0)
+			}
 			flag, ok := getFlagByShortName(allFlags, short)
 			if !ok {
 				panic("unknown flag: -" + short)
 			} else {
-				providedFlags = append(providedFlags, flag)
+				nonPositionalFlags = append(nonPositionalFlags, flag)
 			}
 			i = parseNonPositional(flag, strct, i)
 		} else {
@@ -120,9 +141,9 @@ func Parse(strct any) {
 		}
 	}
 
-	checkForConflicts(providedFlags)
-	checkForMissingMandatoryFlags(allFlags, providedFlags)
-	checkForMultipleUse(providedFlags)
+	checkForConflicts(nonPositionalFlags)
+	checkForMissingMandatoryFlags(allFlags, nonPositionalFlags, positionalFlags)
+	checkForMultipleUse(nonPositionalFlags)
 }
 
 func parseNonPositional(flag flag, strct any, index int) int {
@@ -267,6 +288,9 @@ func addToSlice(strct any, name string, val any) {
 func checkForNameCollisions(flags []flag) {
 	seen := make(map[string]flag)
 	for _, flag := range flags {
+		if flag.positional {
+			continue
+		}
 		existing, exists := seen[flag.long]
 		if !exists {
 			seen[flag.long] = flag
@@ -294,7 +318,15 @@ func checkForConflicts(providedFlags []flag) {
 	}
 }
 
-func checkForMissingMandatoryFlags(flags []flag, providedFlags []flag) {
+func checkForMissingMandatoryFlags(flags []flag, nonPositionalFlags []flag, positionalFlags []flag) {
+	providedFlags := make([]flag, 0)
+	for _, nonPositionalFlag := range nonPositionalFlags {
+		providedFlags = append(providedFlags, nonPositionalFlag)
+	}
+	for _, positionalFlag := range positionalFlags {
+		providedFlags = append(providedFlags, positionalFlag)
+	}
+
 outer:
 	for _, flag := range flags {
 		if flag.mandatory {
@@ -303,7 +335,11 @@ outer:
 					continue outer
 				}
 			}
-			panic(fmt.Sprintf("missing mandatory flag: --%s (-%s)", flag.long, flag.short))
+			if flag.positional {
+				panic(fmt.Sprintf("missing mandatory positional flag: %s", flag.name))
+			} else {
+				panic(fmt.Sprintf("missing mandatory flag: --%s (-%s)", flag.long, flag.short))
+			}
 		}
 	}
 }
@@ -343,7 +379,6 @@ func parseTagValues(tag string) []string {
 			escapeNext = true
 		case '\'':
 			inQuotes = !inQuotes
-			sb.WriteByte(ch)
 		case ',':
 			if inQuotes {
 				sb.WriteByte(ch)
@@ -361,4 +396,126 @@ func parseTagValues(tag string) []string {
 	}
 
 	return tagValues
+}
+
+func printHelp(flags []flag, w io.Writer) {
+	var usageParts []string
+	usageParts = append(usageParts, filepath.Base(os.Args[0]))
+
+	// Add all options (required and optional)
+	for _, f := range flags {
+		if f.positional {
+			continue
+		}
+
+		var flagSyntax string
+		long := "--" + f.long
+		if f.kind == reflect.Slice {
+			flagSyntax = long + " ..."
+		} else {
+			flagSyntax = long
+		}
+
+		if f.mandatory {
+			usageParts = append(usageParts, flagSyntax)
+		} else {
+			usageParts = append(usageParts, "["+flagSyntax+"]")
+		}
+	}
+
+	// Add positional arguments
+	for _, f := range flags {
+		if f.positional {
+			if f.mandatory {
+				usageParts = append(usageParts, "<"+f.name+">")
+			} else {
+				usageParts = append(usageParts, "["+f.name+"]")
+			}
+		}
+	}
+
+	fmt.Fprintf(w, "Usage:\n  %s\n\n", strings.Join(usageParts, " "))
+
+	// --- Format help sections ---
+
+	// Determine label width
+	maxLabelLen := 0
+	getLabel := func(f flag) string {
+		var parts []string
+		if f.short != "" {
+			parts = append(parts, "-"+f.short)
+		}
+		if f.long != "" {
+			parts = append(parts, "--"+f.long)
+		}
+		label := strings.Join(parts, ", ")
+		if label == "" {
+			label = f.name
+		}
+		if len(label) > maxLabelLen {
+			maxLabelLen = len(label)
+		}
+		return label
+	}
+
+	labels := make(map[string]string)
+	for _, f := range flags {
+		if !f.positional {
+			labels[f.name] = getLabel(f)
+		}
+	}
+
+	// Required options
+	hasRequired := false
+	for _, f := range flags {
+		if !f.positional && f.mandatory {
+			if !hasRequired {
+				fmt.Fprintln(w, "Required options:")
+				hasRequired = true
+			}
+			desc := f.description
+			if f.kind == reflect.Slice {
+				desc += " (can be specified multiple times)"
+			}
+			fmt.Fprintf(w, "  %-*s  %s\n", maxLabelLen, labels[f.name], desc)
+		}
+	}
+	if hasRequired {
+		fmt.Fprintln(w)
+	}
+
+	// Optional options
+	hasOptional := false
+	for _, f := range flags {
+		if !f.positional && !f.mandatory {
+			if !hasOptional {
+				fmt.Fprintln(w, "Options:")
+				hasOptional = true
+			}
+			desc := f.description
+			if f.kind == reflect.Slice {
+				desc += " (can be specified multiple times)"
+			}
+			fmt.Fprintf(w, "  %-*s  %s\n", maxLabelLen, labels[f.name], desc)
+		}
+	}
+	if hasOptional {
+		fmt.Fprintln(w)
+	}
+
+	// Positional arguments
+	hasPositional := false
+	for _, f := range flags {
+		if f.positional {
+			if !hasPositional {
+				fmt.Fprintln(w, "Positional arguments:")
+				hasPositional = true
+			}
+			reqMark := ""
+			if f.mandatory {
+				reqMark = " (required)"
+			}
+			fmt.Fprintf(w, "  %-*s  %s%s\n", maxLabelLen, f.name, f.description, reqMark)
+		}
+	}
 }
