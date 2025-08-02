@@ -16,6 +16,7 @@ type flag struct {
 	long          string
 	conflictsWith []string
 	mandatory     bool
+	positional    bool
 }
 
 func Parse(strct any) {
@@ -25,15 +26,18 @@ func Parse(strct any) {
 
 	strctType := reflect.TypeOf(strct).Elem()
 
-	flags := make([]flag, 0)
+	allFlags := make([]flag, 0)
 
 	for i := range strctType.NumField() {
 		field := strctType.Field(i)
 
-		long := strings.ToLower(field.Name)
-		short := string(strings.ToLower(field.Name)[0])
-		conflictsWith := make([]string, 0)
-		mandatory := false
+		var (
+			long          = strings.ToLower(field.Name)
+			short         = string(strings.ToLower(field.Name)[0])
+			conflictsWith = make([]string, 0)
+			mandatory     = false
+			positional    = false
+		)
 
 		tag := field.Tag.Get("flag")
 		if tag != "" {
@@ -46,13 +50,15 @@ func Parse(strct any) {
 					conflictsWith = strings.Split(strings.Split(tagValue, "=")[1], ",")
 				} else if tagValue == "mandatory" {
 					mandatory = true
+				} else if tagValue == "positional" {
+					positional = true
 				} else {
 					panic("unkown tag value: " + tagValue)
 				}
 			}
 		}
 
-		flags = append(flags, flag{
+		allFlags = append(allFlags, flag{
 			name:          field.Name,
 			type_:         field.Type,
 			kind:          field.Type.Kind(),
@@ -60,18 +66,27 @@ func Parse(strct any) {
 			short:         short,
 			conflictsWith: conflictsWith,
 			mandatory:     mandatory,
+			positional:    positional,
 		})
 	}
 
-	checkForNameCollisions(flags)
+	checkForNameCollisions(allFlags)
 
 	providedFlags := make([]flag, 0)
+
+	positionalFlagIndex := 0
+	positionalFlags := make([]flag, 0)
+	for _, flag := range allFlags {
+		if flag.positional {
+			positionalFlags = append(positionalFlags, flag)
+		}
+	}
 
 	for i := 1; i < len(os.Args); i++ {
 		arg := os.Args[i]
 		if strings.HasPrefix(arg, "--") {
 			long := arg[2:]
-			flag, ok := getFlagByLongName(flags, long)
+			flag, ok := getFlagByLongName(allFlags, long)
 			if !ok {
 				panic("unknown flag: --" + long)
 			} else {
@@ -80,7 +95,7 @@ func Parse(strct any) {
 			i = parseNonPositional(flag, strct, i)
 		} else if strings.HasPrefix(arg, "-") {
 			short := arg[1:]
-			flag, ok := getFlagByShortName(flags, short)
+			flag, ok := getFlagByShortName(allFlags, short)
 			if !ok {
 				panic("unknown flag: -" + short)
 			} else {
@@ -88,13 +103,18 @@ func Parse(strct any) {
 			}
 			i = parseNonPositional(flag, strct, i)
 		} else {
-			// positional
-			panic("not implemented")
+			if positionalFlagIndex >= len(positionalFlags) {
+				panic("too many arguments")
+			} else {
+				positionalFlag := positionalFlags[positionalFlagIndex]
+				i = parsePositional(positionalFlag, strct, i)
+				positionalFlagIndex++
+			}
 		}
 	}
 
 	checkForConflicts(providedFlags)
-	checkForMissingMandatoryFlags(flags, providedFlags)
+	checkForMissingMandatoryFlags(allFlags, providedFlags)
 	checkForMultipleUse(providedFlags)
 }
 
@@ -103,66 +123,90 @@ func parseNonPositional(flag flag, strct any, index int) int {
 		setBool(strct, flag.name, true)
 		return index
 	} else if flag.kind == reflect.String {
-		val := parseString(index, flag.name)
+		val := parseNonPositionalString(index, flag.name)
 		setString(strct, flag.name, val)
 		return index + 1
 	} else if flag.kind == reflect.Int {
-		val := parseInt(index, flag.name)
+		val := parseNonPositionalInt(index, flag.name)
 		setInt(strct, flag.name, val)
 		return index + 1
 	} else if flag.kind == reflect.Float64 {
-		val := parseFloat(index, flag.name)
+		val := parseNonPositionalFloat(index, flag.name)
 		setFloat(strct, flag.name, val)
 		return index + 1
 	} else if flag.kind == reflect.Slice {
 		innerKind := flag.type_.Elem().Kind()
 		var val any
 		if innerKind == reflect.String {
-			val = parseString(index, flag.name)
+			val = parseNonPositionalString(index, flag.name)
 		} else if innerKind == reflect.Int {
-			val = parseInt(index, flag.name)
+			val = parseNonPositionalInt(index, flag.name)
 		} else if innerKind == reflect.Float64 {
-			val = parseFloat(index, flag.name)
+			val = parseNonPositionalFloat(index, flag.name)
 		} else {
 			panic("not implemented flag kind []" + innerKind.String())
 		}
 		addToSlice(strct, flag.name, val)
 		return index + 1
 	} else {
-		panic(fmt.Sprintf("not implemented flag kind: %+v", flag))
+		panic(fmt.Sprintf("not implemented flag kind: %v", flag.kind))
 	}
 }
 
-func parseString(i int, name string) string {
-	if i+1 > len(os.Args) {
-		panic("missing value for: " + name)
+func parsePositional(flag flag, strct any, index int) int {
+	if flag.kind == reflect.String {
+		val := os.Args[index]
+		setString(strct, flag.name, val)
+	} else if flag.kind == reflect.Int {
+		arg := os.Args[index]
+		val, err := strconv.Atoi(arg)
+		if err != nil {
+			panic("value is not an int: " + arg)
+		}
+		setInt(strct, flag.name, val)
+	} else if flag.kind == reflect.Float64 {
+		arg := os.Args[index]
+		val, err := strconv.ParseFloat(arg, 64)
+		if err != nil {
+			panic("value is not a float: " + arg)
+		}
+		setFloat(strct, flag.name, val)
+	} else {
+		panic(fmt.Sprintf("not implemented flag kind: %v", flag.kind))
 	}
-	value := os.Args[i+1]
-	return value
+	return index
 }
 
-func parseInt(i int, name string) int {
-	if i+1 > len(os.Args) {
+func parseNonPositionalString(index int, name string) string {
+	if index+1 >= len(os.Args) {
 		panic("missing value for: " + name)
 	}
-	value := os.Args[i+1]
-	i, err := strconv.Atoi(value)
+	val := os.Args[index+1]
+	return val
+}
+
+func parseNonPositionalInt(index int, name string) int {
+	if index+1 >= len(os.Args) {
+		panic("missing value for: " + name)
+	}
+	arg := os.Args[index+1]
+	val, err := strconv.Atoi(arg)
 	if err != nil {
-		panic(err)
+		panic("value is not an int: " + arg)
 	}
-	return i
+	return val
 }
 
-func parseFloat(i int, name string) float64 {
-	if i+1 > len(os.Args) {
+func parseNonPositionalFloat(index int, name string) float64 {
+	if index+1 >= len(os.Args) {
 		panic("missing value for: " + name)
 	}
-	value := os.Args[i+1]
-	f, err := strconv.ParseFloat(value, 64)
+	arg := os.Args[index+1]
+	val, err := strconv.ParseFloat(arg, 64)
 	if err != nil {
-		panic(err)
+		panic("value is not a float: " + arg)
 	}
-	return f
+	return val
 }
 
 func isStructPointer(strct any) bool {
