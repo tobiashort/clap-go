@@ -17,6 +17,7 @@ type flag struct {
 	conflictsWith []string
 	mandatory     bool
 	positional    bool
+	description   string
 }
 
 func Parse(strct any) {
@@ -37,17 +38,22 @@ func Parse(strct any) {
 			conflictsWith = make([]string, 0)
 			mandatory     = false
 			positional    = false
+			description   = ""
 		)
 
 		tag := field.Tag.Get("flag")
 		if tag != "" {
-			for tagValue := range strings.SplitSeq(tag, ",") {
+			tagValues := parseTagValues(tag)
+
+			for _, tagValue := range tagValues {
 				if strings.HasPrefix(tagValue, "short=") {
 					short = strings.Split(tagValue, "=")[1]
 				} else if strings.HasPrefix(tagValue, "long=") {
 					long = strings.Split(tagValue, "=")[1]
 				} else if strings.HasPrefix(tagValue, "conflicts-with=") {
 					conflictsWith = strings.Split(strings.Split(tagValue, "=")[1], ",")
+				} else if strings.HasPrefix(tagValue, "description=") {
+					description = strings.Split(tagValue, "=")[1]
 				} else if tagValue == "mandatory" {
 					mandatory = true
 				} else if tagValue == "positional" {
@@ -67,6 +73,7 @@ func Parse(strct any) {
 			conflictsWith: conflictsWith,
 			mandatory:     mandatory,
 			positional:    positional,
+			description:   description,
 		})
 	}
 
@@ -313,4 +320,45 @@ func checkForMultipleUse(providedFlags []flag) {
 			}
 		}
 	}
+}
+
+func parseTagValues(tag string) []string {
+	var tagValues []string
+
+	var sb strings.Builder
+	inQuotes := false
+	escapeNext := false
+
+	for i := range len(tag) {
+		ch := tag[i]
+
+		if escapeNext {
+			sb.WriteByte(ch)
+			escapeNext = false
+			continue
+		}
+
+		switch ch {
+		case '\\':
+			escapeNext = true
+		case '\'':
+			inQuotes = !inQuotes
+			sb.WriteByte(ch)
+		case ',':
+			if inQuotes {
+				sb.WriteByte(ch)
+			} else {
+				tagValues = append(tagValues, sb.String())
+				sb.Reset()
+			}
+		default:
+			sb.WriteByte(ch)
+		}
+	}
+
+	if sb.Len() > 0 {
+		tagValues = append(tagValues, sb.String())
+	}
+
+	return tagValues
 }

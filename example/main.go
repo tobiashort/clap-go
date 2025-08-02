@@ -11,7 +11,7 @@ type Args struct {
 	Age     int
 	Male    bool `flag:"conflicts-with=Female"`
 	Female  bool
-	Job     string
+	Job     string `flag:"description='the flag\\'s description, and with a comma',long=JOB"`
 	Salary  int
 	InFile  string   `flag:"positional"`
 	Friends []string `flag:"short=F"`
