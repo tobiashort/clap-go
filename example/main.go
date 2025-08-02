@@ -13,10 +13,10 @@ type Args struct {
 	FullTime       bool     `flag:"short=F,long=full-time,conflicts-with=PartTime,description='Mark as full-time employee'"`
 	PartTime       bool     `flag:"short=P,long=part-time,description='Mark as part-time employee'"`
 	Apprenticeship bool     `flag:"short=A,description='Indicates the employee is joining as an apprentice'"`
-	Salary         int      `flag:"description='Starting salary in USD'"`
+	Salary         int      `flag:"default-value=9999,description='Starting salary in USD'"`
 	TeamsChannel   []string `flag:"long=notify,short=N,description='Slack team channels to notify (e.g., #eng, #ops)'"`
 	EmployeeID     string   `flag:"positional,mandatory,description='Unique employee ID'"`
-	Department     string   `flag:"positional,description='Department name (e.g., Engineering, HR)'"`
+	Department     string   `flag:"positional,default-value=Design,description='Department name (e.g., Engineering, HR)'"`
 }
 
 func main() {

@@ -20,6 +20,7 @@ type flag struct {
 	mandatory     bool
 	positional    bool
 	description   string
+	defaultValue  string
 }
 
 func Parse(strct any) {
@@ -41,6 +42,7 @@ func Parse(strct any) {
 			mandatory     = false
 			positional    = false
 			description   = ""
+			defaultValue  = ""
 		)
 
 		tag := field.Tag.Get("flag")
@@ -54,6 +56,8 @@ func Parse(strct any) {
 					long = strings.Split(tagValue, "=")[1]
 				} else if strings.HasPrefix(tagValue, "conflicts-with=") {
 					conflictsWith = strings.Split(strings.Split(tagValue, "=")[1], ",")
+				} else if strings.HasPrefix(tagValue, "default-value=") {
+					defaultValue = strings.Split(tagValue, "=")[1]
 				} else if strings.HasPrefix(tagValue, "description=") {
 					description = strings.Split(tagValue, "=")[1]
 				} else if tagValue == "mandatory" {
@@ -76,6 +80,7 @@ func Parse(strct any) {
 			mandatory:     mandatory,
 			positional:    positional,
 			description:   description,
+			defaultValue:  defaultValue,
 		})
 	}
 
@@ -117,7 +122,7 @@ func Parse(strct any) {
 			} else {
 				givenNonPositionalFlags = append(givenNonPositionalFlags, flag)
 			}
-			i = parseNonPositional(flag, strct, i)
+			i = parseNonPositionalAtIndex(flag, strct, i)
 		} else if strings.HasPrefix(arg, "-") {
 			shortGrouped := arg[1:]
 			for _, rune := range shortGrouped {
@@ -132,7 +137,7 @@ func Parse(strct any) {
 				} else {
 					givenNonPositionalFlags = append(givenNonPositionalFlags, flag)
 				}
-				i = parseNonPositional(flag, strct, i)
+				i = parseNonPositionalAtIndex(flag, strct, i)
 			}
 		} else {
 			if positionalFlagIndex >= len(programPositionalFlags) {
@@ -140,7 +145,7 @@ func Parse(strct any) {
 			} else {
 				positionalFlag := programPositionalFlags[positionalFlagIndex]
 				givenPositionalFlags = append(givenPositionalFlags, positionalFlag)
-				i = parsePositional(positionalFlag, strct, i)
+				parsePositionalAtIndex(positionalFlag, strct, i)
 				positionalFlagIndex++
 			}
 		}
@@ -149,57 +154,89 @@ func Parse(strct any) {
 	checkForConflicts(givenNonPositionalFlags)
 	checkForMissingMandatoryFlags(programFlags, givenNonPositionalFlags, givenPositionalFlags)
 	checkForMultipleUse(givenNonPositionalFlags)
+
+outer:
+	for _, flag := range programFlags {
+		if flag.defaultValue == "" {
+			continue
+		}
+		for _, givenFlag := range givenNonPositionalFlags {
+			if flag.name == givenFlag.name {
+				continue outer
+			}
+		}
+		for _, givenFlag := range givenPositionalFlags {
+			if flag.name == givenFlag.name {
+				continue outer
+			}
+		}
+		if flag.positional {
+			parsePositional(flag, strct, flag.defaultValue)
+		} else {
+			parseNonPositional(flag, strct, flag.defaultValue)
+		}
+	}
 }
 
-func parseNonPositional(flag flag, strct any, index int) int {
+func parseNonPositionalAtIndex(flag flag, strct any, index int) int {
+	if flag.kind == reflect.Bool {
+		parseNonPositional(flag, strct, "")
+		return index
+	} else {
+		if index+1 >= len(os.Args) {
+			userError(fmt.Sprintf("missing value for: -%s|--%s", flag.short, flag.long))
+		}
+		arg := os.Args[index+1]
+		parseNonPositional(flag, strct, arg)
+		return index + 1
+	}
+}
+
+func parseNonPositional(flag flag, strct any, arg string) {
 	if flag.kind == reflect.Bool {
 		setBool(strct, flag.name, true)
-		return index
 	} else if flag.kind == reflect.String {
-		val := parseNonPositionalString(index, flag)
-		setString(strct, flag.name, val)
-		return index + 1
+		setString(strct, flag.name, arg)
 	} else if flag.kind == reflect.Int {
-		val := parseNonPositionalInt(index, flag)
+		val := parseInt(arg)
 		setInt(strct, flag.name, val)
-		return index + 1
 	} else if flag.kind == reflect.Float64 {
-		val := parseNonPositionalFloat(index, flag)
+		val := parseFloat(arg)
 		setFloat(strct, flag.name, val)
-		return index + 1
 	} else if flag.kind == reflect.Slice {
 		innerKind := flag.type_.Elem().Kind()
 		var val any
 		if innerKind == reflect.String {
-			val = parseNonPositionalString(index, flag)
+			val = arg
 		} else if innerKind == reflect.Int {
-			val = parseNonPositionalInt(index, flag)
+			val = parseInt(arg)
 		} else if innerKind == reflect.Float64 {
-			val = parseNonPositionalFloat(index, flag)
+			val = parseFloat(arg)
 		} else {
 			developerError("not implemented flag kind []" + innerKind.String())
 		}
 		addToSlice(strct, flag.name, val)
-		return index + 1
 	} else {
 		developerError(fmt.Sprintf("not implemented flag kind: %v", flag.kind))
 		panic("unreachable")
 	}
 }
 
-func parsePositional(flag flag, strct any, index int) int {
+func parsePositionalAtIndex(flag flag, strct any, index int) {
+	arg := os.Args[index]
+	parsePositional(flag, strct, arg)
+}
+
+func parsePositional(flag flag, strct any, arg string) {
 	if flag.kind == reflect.String {
-		val := os.Args[index]
-		setString(strct, flag.name, val)
+		setString(strct, flag.name, arg)
 	} else if flag.kind == reflect.Int {
-		arg := os.Args[index]
 		val, err := strconv.Atoi(arg)
 		if err != nil {
 			developerError("value is not an int: " + arg)
 		}
 		setInt(strct, flag.name, val)
 	} else if flag.kind == reflect.Float64 {
-		arg := os.Args[index]
 		val, err := strconv.ParseFloat(arg, 64)
 		if err != nil {
 			developerError("value is not a float: " + arg)
@@ -208,22 +245,9 @@ func parsePositional(flag flag, strct any, index int) int {
 	} else {
 		developerError(fmt.Sprintf("not implemented flag kind: %v", flag.kind))
 	}
-	return index
 }
 
-func parseNonPositionalString(index int, flag flag) string {
-	if index+1 >= len(os.Args) {
-		userError(fmt.Sprintf("missing value for: -%s|--%s", flag.short, flag.long))
-	}
-	val := os.Args[index+1]
-	return val
-}
-
-func parseNonPositionalInt(index int, flag flag) int {
-	if index+1 >= len(os.Args) {
-		userError(fmt.Sprintf("missing value for: -%s|--%s", flag.short, flag.long))
-	}
-	arg := os.Args[index+1]
+func parseInt(arg string) int {
 	val, err := strconv.Atoi(arg)
 	if err != nil {
 		userError("value is not an int: " + arg)
@@ -231,11 +255,7 @@ func parseNonPositionalInt(index int, flag flag) int {
 	return val
 }
 
-func parseNonPositionalFloat(index int, flag flag) float64 {
-	if index+1 >= len(os.Args) {
-		userError(fmt.Sprintf("missing value for: -%s|--%s", flag.short, flag.long))
-	}
-	arg := os.Args[index+1]
+func parseFloat(arg string) float64 {
 	val, err := strconv.ParseFloat(arg, 64)
 	if err != nil {
 		userError("value is not a float: " + arg)
