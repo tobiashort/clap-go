@@ -23,13 +23,12 @@ func Parse(strct any) {
 		panic("expected struct pointer")
 	}
 
-	typeOf := reflect.TypeOf(strct)
-	typeOfDeref := typeOf.Elem()
+	strctType := reflect.TypeOf(strct).Elem()
 
 	flags := make([]flag, 0)
 
-	for i := range typeOfDeref.NumField() {
-		field := typeOfDeref.Field(i)
+	for i := range strctType.NumField() {
+		field := strctType.Field(i)
 
 		long := strings.ToLower(field.Name)
 		short := string(strings.ToLower(field.Name)[0])
@@ -74,44 +73,20 @@ func Parse(strct any) {
 			long := arg[2:]
 			flag, ok := getFlagByLongName(flags, long)
 			if !ok {
-				panic("unknown flag: " + long)
+				panic("unknown flag: --" + long)
 			} else {
 				providedFlags = append(providedFlags, flag)
 			}
-			if flag.kind == reflect.Bool {
-				setBool(strct, flag.name, true)
-			} else if flag.kind == reflect.String {
-				val := parseString(i, flag.name)
-				setString(strct, flag.name, val)
-				i++
-			} else if flag.kind == reflect.Int {
-				val := parseInt(i, flag.name)
-				setInt(strct, flag.name, val)
-				i++
-			} else {
-				panic(fmt.Sprintf("not implemented flag kind: %+v", flag))
-			}
+			i = parseNonPositional(flag, strct, i)
 		} else if strings.HasPrefix(arg, "-") {
 			short := arg[1:]
 			flag, ok := getFlagByShortName(flags, short)
 			if !ok {
-				panic("unknown flag: " + short)
+				panic("unknown flag: -" + short)
 			} else {
 				providedFlags = append(providedFlags, flag)
 			}
-			if flag.kind == reflect.Bool {
-				setBool(strct, flag.name, true)
-			} else if flag.kind == reflect.String {
-				val := parseString(i, flag.name)
-				setString(strct, flag.name, val)
-				i++
-			} else if flag.kind == reflect.Int {
-				val := parseInt(i, flag.name)
-				setInt(strct, flag.name, val)
-				i++
-			} else {
-				panic(fmt.Sprintf("not implemented flag kind: %+v", flag))
-			}
+			i = parseNonPositional(flag, strct, i)
 		} else {
 			// positional
 			panic("not implemented")
@@ -121,6 +96,41 @@ func Parse(strct any) {
 	checkForConflicts(providedFlags)
 	checkForMissingMandatoryFlags(flags, providedFlags)
 	checkForMultipleUse(providedFlags)
+}
+
+func parseNonPositional(flag flag, strct any, index int) int {
+	if flag.kind == reflect.Bool {
+		setBool(strct, flag.name, true)
+		return index
+	} else if flag.kind == reflect.String {
+		val := parseString(index, flag.name)
+		setString(strct, flag.name, val)
+		return index + 1
+	} else if flag.kind == reflect.Int {
+		val := parseInt(index, flag.name)
+		setInt(strct, flag.name, val)
+		return index + 1
+	} else if flag.kind == reflect.Float64 {
+		val := parseFloat(index, flag.name)
+		setFloat(strct, flag.name, val)
+		return index + 1
+	} else if flag.kind == reflect.Slice {
+		innerKind := flag.type_.Elem().Kind()
+		var val any
+		if innerKind == reflect.String {
+			val = parseString(index, flag.name)
+		} else if innerKind == reflect.Int {
+			val = parseInt(index, flag.name)
+		} else if innerKind == reflect.Float64 {
+			val = parseFloat(index, flag.name)
+		} else {
+			panic("not implemented flag kind []" + innerKind.String())
+		}
+		addToSlice(strct, flag.name, val)
+		return index + 1
+	} else {
+		panic(fmt.Sprintf("not implemented flag kind: %+v", flag))
+	}
 }
 
 func parseString(i int, name string) string {
@@ -141,6 +151,18 @@ func parseInt(i int, name string) int {
 		panic(err)
 	}
 	return i
+}
+
+func parseFloat(i int, name string) float64 {
+	if i+1 > len(os.Args) {
+		panic("missing value for: " + name)
+	}
+	value := os.Args[i+1]
+	f, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		panic(err)
+	}
+	return f
 }
 
 func isStructPointer(strct any) bool {
@@ -170,12 +192,25 @@ func setInt(strct any, name string, val int) {
 	reflect.ValueOf(strct).Elem().FieldByName(name).SetInt(int64(val))
 }
 
+func setFloat(strct any, name string, val float64) {
+	reflect.ValueOf(strct).Elem().FieldByName(name).SetFloat(val)
+}
+
 func setBool(strct any, name string, val bool) {
 	reflect.ValueOf(strct).Elem().FieldByName(name).SetBool(val)
 }
 
 func setString(strct any, name string, val string) {
 	reflect.ValueOf(strct).Elem().FieldByName(name).SetString(val)
+}
+
+func addToSlice(strct any, name string, val any) {
+	field := reflect.ValueOf(strct).Elem().FieldByName(name)
+	if field.IsNil() {
+		field.Set(reflect.MakeSlice(field.Type(), 0, 1))
+	}
+	updatedSlice := reflect.Append(field, reflect.ValueOf(val))
+	field.Set(updatedSlice)
 }
 
 func checkForNameCollisions(flags []flag) {
@@ -185,13 +220,13 @@ func checkForNameCollisions(flags []flag) {
 		if !exists {
 			seen[flag.long] = true
 		} else {
-			panic(fmt.Sprintf("flag name collision: %s: %s", flag.name, flag.long))
+			panic(fmt.Sprintf("flag name collision: %s: --%s", flag.name, flag.long))
 		}
 		_, exists = seen[flag.short]
 		if !exists {
 			seen[flag.short] = true
 		} else {
-			panic(fmt.Sprintf("flag name collision: %s: %s", flag.name, flag.short))
+			panic(fmt.Sprintf("flag name collision: %s: -%s", flag.name, flag.short))
 		}
 	}
 }
@@ -217,7 +252,6 @@ outer:
 					continue outer
 				}
 			}
-
 			panic(fmt.Sprintf("missing mandatory flag: --%s (-%s)", flag.long, flag.short))
 		}
 	}
@@ -230,7 +264,9 @@ func checkForMultipleUse(providedFlags []flag) {
 		if !exists {
 			seen[flag.name] = true
 		} else {
-			panic(fmt.Sprintf("multiple use of flag --%s (-%s)", flag.long, flag.short))
+			if flag.kind != reflect.Slice {
+				panic(fmt.Sprintf("multiple use of flag --%s (-%s)", flag.long, flag.short))
+			}
 		}
 	}
 }
