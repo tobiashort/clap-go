@@ -18,12 +18,12 @@ type flag struct {
 	mandatory     bool
 }
 
-func Parse(v any) {
-	if !isStructPointer(v) {
+func Parse(strct any) {
+	if !isStructPointer(strct) {
 		panic("expected struct pointer")
 	}
 
-	typeOf := reflect.TypeOf(v)
+	typeOf := reflect.TypeOf(strct)
 	typeOfDeref := typeOf.Elem()
 
 	flags := make([]flag, 0)
@@ -71,41 +71,43 @@ func Parse(v any) {
 	for i := 1; i < len(os.Args); i++ {
 		arg := os.Args[i]
 		if strings.HasPrefix(arg, "--") {
-			// long
-			name := arg[2:]
-			flag, ok := getFlagByLongName(flags, name)
+			long := arg[2:]
+			flag, ok := getFlagByLongName(flags, long)
 			if !ok {
-				panic("unknown flag: " + name)
+				panic("unknown flag: " + long)
 			} else {
 				providedFlags = append(providedFlags, flag)
 			}
 			if flag.kind == reflect.Bool {
-				setBool(v, flag.name, true)
+				setBool(strct, flag.name, true)
 			} else if flag.kind == reflect.String {
-				parseString(i, v, flag.name)
+				val := parseString(i, flag.name)
+				setString(strct, flag.name, val)
 				i++
 			} else if flag.kind == reflect.Int {
-				parseInt(i, v, flag.name)
+				val := parseInt(i, flag.name)
+				setInt(strct, flag.name, val)
 				i++
 			} else {
 				panic(fmt.Sprintf("not implemented flag kind: %+v", flag))
 			}
 		} else if strings.HasPrefix(arg, "-") {
-			// short
-			name := arg[1:]
-			flag, ok := getFlagByShortName(flags, name)
+			short := arg[1:]
+			flag, ok := getFlagByShortName(flags, short)
 			if !ok {
-				panic("unknown flag: " + name)
+				panic("unknown flag: " + short)
 			} else {
 				providedFlags = append(providedFlags, flag)
 			}
 			if flag.kind == reflect.Bool {
-				setBool(v, flag.name, true)
+				setBool(strct, flag.name, true)
 			} else if flag.kind == reflect.String {
-				parseString(i, v, flag.name)
+				val := parseString(i, flag.name)
+				setString(strct, flag.name, val)
 				i++
 			} else if flag.kind == reflect.Int {
-				parseInt(i, v, flag.name)
+				val := parseInt(i, flag.name)
+				setInt(strct, flag.name, val)
 				i++
 			} else {
 				panic(fmt.Sprintf("not implemented flag kind: %+v", flag))
@@ -118,26 +120,31 @@ func Parse(v any) {
 
 	checkForConflicts(providedFlags)
 	checkForMissingMandatoryFlags(flags, providedFlags)
+	checkForMultipleUse(providedFlags)
 }
 
-func parseString(i int, v any, name string) {
+func parseString(i int, name string) string {
 	if i+1 > len(os.Args) {
 		panic("missing value for: " + name)
 	}
 	value := os.Args[i+1]
-	setString(v, name, value)
+	return value
 }
 
-func parseInt(i int, v any, name string) {
+func parseInt(i int, name string) int {
 	if i+1 > len(os.Args) {
 		panic("missing value for: " + name)
 	}
 	value := os.Args[i+1]
-	setInt(v, name, value)
+	i, err := strconv.Atoi(value)
+	if err != nil {
+		panic(err)
+	}
+	return i
 }
 
-func isStructPointer(v any) bool {
-	t := reflect.TypeOf(v)
+func isStructPointer(strct any) bool {
+	t := reflect.TypeOf(strct)
 	return t.Kind() == reflect.Ptr && t.Elem().Kind() == reflect.Struct
 }
 
@@ -159,20 +166,16 @@ func getFlagByShortName(flags []flag, name string) (flag, bool) {
 	return flag{}, false
 }
 
-func setInt(obj any, name string, val string) {
-	i, err := strconv.Atoi(val)
-	if err != nil {
-		panic(err)
-	}
-	reflect.ValueOf(obj).Elem().FieldByName(name).SetInt(int64(i))
+func setInt(strct any, name string, val int) {
+	reflect.ValueOf(strct).Elem().FieldByName(name).SetInt(int64(val))
 }
 
-func setBool(obj any, name string, val bool) {
-	reflect.ValueOf(obj).Elem().FieldByName(name).SetBool(val)
+func setBool(strct any, name string, val bool) {
+	reflect.ValueOf(strct).Elem().FieldByName(name).SetBool(val)
 }
 
-func setString(obj any, name string, val string) {
-	reflect.ValueOf(obj).Elem().FieldByName(name).SetString(val)
+func setString(strct any, name string, val string) {
+	reflect.ValueOf(strct).Elem().FieldByName(name).SetString(val)
 }
 
 func checkForNameCollisions(flags []flag) {
@@ -214,7 +217,20 @@ outer:
 					continue outer
 				}
 			}
+
 			panic(fmt.Sprintf("missing mandatory flag: --%s (-%s)", flag.long, flag.short))
+		}
+	}
+}
+
+func checkForMultipleUse(providedFlags []flag) {
+	seen := make(map[string]bool)
+	for _, flag := range providedFlags {
+		_, exists := seen[flag.name]
+		if !exists {
+			seen[flag.name] = true
+		} else {
+			panic(fmt.Sprintf("multiple use of flag --%s (-%s)", flag.long, flag.short))
 		}
 	}
 }

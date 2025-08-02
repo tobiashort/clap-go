@@ -28,9 +28,9 @@ func main() {
 		sex = "Other"
 	}
 
-	fmt.Println("Name:", args.Name)
-	fmt.Println("Age", args.Age)
-	fmt.Println("Sex:", sex)
-	fmt.Println("Job:", args.Job)
+	fmt.Println("Name:  ", args.Name)
+	fmt.Println("Age    ", args.Age)
+	fmt.Println("Sex:   ", sex)
+	fmt.Println("Job:   ", args.Job)
 	fmt.Println("Salary:", args.Salary)
 }
