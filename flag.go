@@ -119,18 +119,21 @@ func Parse(strct any) {
 			}
 			i = parseNonPositional(flag, strct, i)
 		} else if strings.HasPrefix(arg, "-") {
-			short := arg[1:]
-			if short == "h" {
-				printHelp(programFlags, os.Stdout)
-				os.Exit(0)
+			shortGrouped := arg[1:]
+			for _, rune := range shortGrouped {
+				short := string(rune)
+				if short == "h" {
+					printHelp(programFlags, os.Stdout)
+					os.Exit(0)
+				}
+				flag, ok := getFlagByShortName(programFlags, short)
+				if !ok {
+					userError("unknown flag: -" + short)
+				} else {
+					givenNonPositionalFlags = append(givenNonPositionalFlags, flag)
+				}
+				i = parseNonPositional(flag, strct, i)
 			}
-			flag, ok := getFlagByShortName(programFlags, short)
-			if !ok {
-				userError("unknown flag: -" + short)
-			} else {
-				givenNonPositionalFlags = append(givenNonPositionalFlags, flag)
-			}
-			i = parseNonPositional(flag, strct, i)
 		} else {
 			if positionalFlagIndex >= len(programPositionalFlags) {
 				userError("too many arguments")
@@ -210,7 +213,7 @@ func parsePositional(flag flag, strct any, index int) int {
 
 func parseNonPositionalString(index int, flag flag) string {
 	if index+1 >= len(os.Args) {
-		userError(fmt.Sprintf("missing value for: --%s (-%s)", flag.long, flag.short))
+		userError(fmt.Sprintf("missing value for: -%s|--%s", flag.short, flag.long))
 	}
 	val := os.Args[index+1]
 	return val
@@ -218,7 +221,7 @@ func parseNonPositionalString(index int, flag flag) string {
 
 func parseNonPositionalInt(index int, flag flag) int {
 	if index+1 >= len(os.Args) {
-		userError(fmt.Sprintf("missing value for: --%s (-%s)", flag.long, flag.short))
+		userError(fmt.Sprintf("missing value for: -%s|--%s", flag.short, flag.long))
 	}
 	arg := os.Args[index+1]
 	val, err := strconv.Atoi(arg)
@@ -230,7 +233,7 @@ func parseNonPositionalInt(index int, flag flag) int {
 
 func parseNonPositionalFloat(index int, flag flag) float64 {
 	if index+1 >= len(os.Args) {
-		userError(fmt.Sprintf("missing value for: --%s (-%s)", flag.long, flag.short))
+		userError(fmt.Sprintf("missing value for: -%s|--%s", flag.short, flag.long))
 	}
 	arg := os.Args[index+1]
 	val, err := strconv.ParseFloat(arg, 64)
@@ -314,7 +317,7 @@ func checkForConflicts(givenNonPositionalFlags []flag) {
 		for _, inConflict := range outerFlag.conflictsWith {
 			for _, innerFlag := range givenNonPositionalFlags {
 				if innerFlag.name == inConflict {
-					developerError(fmt.Sprintf("conflicting flags: --%s (-%s), --%s (-%s)", outerFlag.long, outerFlag.short, innerFlag.long, innerFlag.short))
+					developerError(fmt.Sprintf("conflicting flags: -%s|--%s, -%s|--%s", outerFlag.short, outerFlag.long, innerFlag.short, innerFlag.long))
 				}
 			}
 		}
@@ -341,7 +344,7 @@ outer:
 			if flag.positional {
 				userError(fmt.Sprintf("missing mandatory positional flag: %s", flag.name))
 			} else {
-				userError(fmt.Sprintf("missing mandatory flag: --%s (-%s)", flag.long, flag.short))
+				userError(fmt.Sprintf("missing mandatory flag: -%s|--%s", flag.short, flag.long))
 			}
 		}
 	}
@@ -355,7 +358,7 @@ func checkForMultipleUse(givenNonPositionalFlags []flag) {
 			seen[flag.name] = true
 		} else {
 			if flag.kind != reflect.Slice {
-				userError(fmt.Sprintf("multiple use of flag --%s (-%s)", flag.long, flag.short))
+				userError(fmt.Sprintf("multiple use of flag -%s|--%s", flag.short, flag.long))
 			}
 		}
 	}
@@ -405,24 +408,25 @@ func printHelp(flags []flag, w io.Writer) {
 	var usageParts []string
 	usageParts = append(usageParts, filepath.Base(os.Args[0]))
 
-	// Add all options (required and optional)
+	for _, f := range flags {
+		if !f.mandatory {
+			usageParts = append(usageParts, "[OPTIONS]")
+			break
+		}
+	}
+
 	for _, f := range flags {
 		if f.positional {
 			continue
 		}
 
-		var flagSyntax string
-		long := "--" + f.long
+		flagSyntax := fmt.Sprintf("--%s <%s>", f.long, f.name)
 		if f.kind == reflect.Slice {
-			flagSyntax = long + " ..."
-		} else {
-			flagSyntax = long
+			flagSyntax = flagSyntax + " ..."
 		}
 
 		if f.mandatory {
 			usageParts = append(usageParts, flagSyntax)
-		} else {
-			usageParts = append(usageParts, "["+flagSyntax+"]")
 		}
 	}
 
@@ -445,15 +449,11 @@ func printHelp(flags []flag, w io.Writer) {
 	maxLabelLen := 0
 	getLabel := func(f flag) string {
 		var parts []string
-		if f.short != "" {
-			parts = append(parts, "-"+f.short)
-		}
-		if f.long != "" {
-			parts = append(parts, "--"+f.long)
-		}
+		parts = append(parts, "-"+f.short)
+		parts = append(parts, "--"+f.long)
 		label := strings.Join(parts, ", ")
-		if label == "" {
-			label = f.name
+		if f.kind != reflect.Bool {
+			label += fmt.Sprintf(" <%s>", f.name)
 		}
 		if len(label) > maxLabelLen {
 			maxLabelLen = len(label)
