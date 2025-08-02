@@ -265,19 +265,19 @@ func addToSlice(strct any, name string, val any) {
 }
 
 func checkForNameCollisions(flags []flag) {
-	seen := make(map[string]bool)
+	seen := make(map[string]flag)
 	for _, flag := range flags {
-		_, exists := seen[flag.long]
+		existing, exists := seen[flag.long]
 		if !exists {
-			seen[flag.long] = true
+			seen[flag.long] = flag
 		} else {
-			panic(fmt.Sprintf("flag name collision: %s: --%s", flag.name, flag.long))
+			panic(fmt.Sprintf("flag name collision: %s (--%s) with %s (--%s)", flag.name, flag.long, existing.name, existing.long))
 		}
-		_, exists = seen[flag.short]
+		existing, exists = seen[flag.short]
 		if !exists {
-			seen[flag.short] = true
+			seen[flag.short] = flag
 		} else {
-			panic(fmt.Sprintf("flag name collision: %s: -%s", flag.name, flag.short))
+			panic(fmt.Sprintf("flag name collision: %s (-%s) with %s (-%s)", flag.name, flag.short, existing.name, existing.short))
 		}
 	}
 }

@@ -7,36 +7,35 @@ import (
 )
 
 type Args struct {
-	Name    string `flag:"mandatory,long=full-name"`
-	Age     int
-	Male    bool `flag:"conflicts-with=Female"`
-	Female  bool
-	Job     string `flag:"description='the flag\\'s description, and with a comma',long=JOB"`
-	Salary  int
-	InFile  string   `flag:"positional"`
-	Friends []string `flag:"short=F"`
-	OutFile string   `flag:"positional"`
+	Name        string   `flag:"mandatory,long=name,description='Full name of the new employee'"`
+	Email       string   `flag:"long=email,description='Company email address to assign'"`
+	Position    string   `flag:"long=title,short=t,description='Job title (e.g., Backend Engineer)'"`
+	FullTime    bool     `flag:"short=F,long=full-time,conflicts-with=PartTime,description='Mark as full-time employee'"`
+	PartTime    bool     `flag:"short=P,long=part-time,description='Mark as part-time employee'"`
+	Salary      int      `flag:"long=salary,description='Starting salary in USD'"`
+	NotifyTeams []string `flag:"long=notify,short=N,description='Slack team channels to notify (e.g., #eng, #ops)'"`
+	Department  string   `flag:"positional,description='Department name (e.g., Engineering, HR)'"`
+	EmployeeID  string   `flag:"positional,short=i,description='Unique employee ID'"`
 }
 
 func main() {
 	args := Args{}
 	flag.Parse(&args)
 
-	sex := ""
-	if args.Female {
-		sex = "Female"
-	} else if args.Male {
-		sex = "Male"
-	} else {
-		sex = "Other"
+	empType := "Contractor"
+	if args.FullTime {
+		empType = "Full-Time"
+	} else if args.PartTime {
+		empType = "Part-Time"
 	}
 
-	fmt.Printf("Name:     %v\n", args.Name)
-	fmt.Printf("Age       %v\n", args.Age)
-	fmt.Printf("Sex:      %v\n", sex)
-	fmt.Printf("Job:      %v\n", args.Job)
-	fmt.Printf("Salary:   %v\n", args.Salary)
-	fmt.Printf("Friends:  %v\n", args.Friends)
-	fmt.Printf("File In:  %v\n", args.InFile)
-	fmt.Printf("File Out: %v\n", args.OutFile)
+	fmt.Println("=== New Employee Onboarding ===")
+	fmt.Printf("Name:        %s\n", args.Name)
+	fmt.Printf("Email:       %s\n", args.Email)
+	fmt.Printf("Position:    %s\n", args.Position)
+	fmt.Printf("Type:        %s\n", empType)
+	fmt.Printf("Salary:      $%d\n", args.Salary)
+	fmt.Printf("Department:  %s\n", args.Department)
+	fmt.Printf("Employee ID: %s\n", args.EmployeeID)
+	fmt.Printf("Notify:      %v\n", args.NotifyTeams)
 }
