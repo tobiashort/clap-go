@@ -24,12 +24,12 @@ type flag struct {
 
 func Parse(strct any) {
 	if !isStructPointer(strct) {
-		panic("expected struct pointer")
+		developerError("expected struct pointer")
 	}
 
 	strctType := reflect.TypeOf(strct).Elem()
 
-	allFlags := make([]flag, 0)
+	programFlags := make([]flag, 0)
 
 	for i := range strctType.NumField() {
 		field := strctType.Field(i)
@@ -61,12 +61,12 @@ func Parse(strct any) {
 				} else if tagValue == "positional" {
 					positional = true
 				} else {
-					panic("unkown tag value: " + tagValue)
+					developerError("unknown tag value: " + tagValue)
 				}
 			}
 		}
 
-		allFlags = append(allFlags, flag{
+		programFlags = append(programFlags, flag{
 			name:          field.Name,
 			type_:         field.Type,
 			kind:          field.Type.Kind(),
@@ -88,62 +88,64 @@ func Parse(strct any) {
 		description: "Show this help message and exit",
 	}
 
-	allFlags = append(allFlags, implicitHelpFlag)
+	programFlags = append(programFlags, implicitHelpFlag)
 
-	checkForNameCollisions(allFlags)
+	checkForNameCollisions(programFlags)
 
-	nonPositionalFlags := make([]flag, 0)
-
-	positionalFlagIndex := 0
-	positionalFlags := make([]flag, 0)
-	for _, flag := range allFlags {
+	programPositionalFlags := make([]flag, 0)
+	for _, flag := range programFlags {
 		if flag.positional {
-			positionalFlags = append(positionalFlags, flag)
+			programPositionalFlags = append(programPositionalFlags, flag)
 		}
 	}
+
+	givenNonPositionalFlags := make([]flag, 0)
+	givenPositionalFlags := make([]flag, 0)
+	positionalFlagIndex := 0
 
 	for i := 1; i < len(os.Args); i++ {
 		arg := os.Args[i]
 		if strings.HasPrefix(arg, "--") {
 			long := arg[2:]
 			if long == "help" {
-				printHelp(allFlags, os.Stdout)
+				printHelp(programFlags, os.Stdout)
 				os.Exit(0)
 			}
-			flag, ok := getFlagByLongName(allFlags, long)
+			flag, ok := getFlagByLongName(programFlags, long)
 			if !ok {
-				panic("unknown flag: --" + long)
+				userError("unknown flag: --" + long)
 			} else {
-				nonPositionalFlags = append(nonPositionalFlags, flag)
+				givenNonPositionalFlags = append(givenNonPositionalFlags, flag)
 			}
 			i = parseNonPositional(flag, strct, i)
 		} else if strings.HasPrefix(arg, "-") {
 			short := arg[1:]
 			if short == "h" {
-				printHelp(allFlags, os.Stdout)
+				printHelp(programFlags, os.Stdout)
 				os.Exit(0)
 			}
-			flag, ok := getFlagByShortName(allFlags, short)
+			flag, ok := getFlagByShortName(programFlags, short)
 			if !ok {
-				panic("unknown flag: -" + short)
+				userError("unknown flag: -" + short)
 			} else {
-				nonPositionalFlags = append(nonPositionalFlags, flag)
+				givenNonPositionalFlags = append(givenNonPositionalFlags, flag)
 			}
 			i = parseNonPositional(flag, strct, i)
 		} else {
-			if positionalFlagIndex >= len(positionalFlags) {
-				panic("too many arguments")
+			if positionalFlagIndex >= len(programPositionalFlags) {
+				userError("too many arguments")
 			} else {
-				positionalFlag := positionalFlags[positionalFlagIndex]
+				positionalFlag := programPositionalFlags[positionalFlagIndex]
+				givenPositionalFlags = append(givenPositionalFlags, positionalFlag)
 				i = parsePositional(positionalFlag, strct, i)
 				positionalFlagIndex++
 			}
 		}
 	}
 
-	checkForConflicts(nonPositionalFlags)
-	checkForMissingMandatoryFlags(allFlags, nonPositionalFlags, positionalFlags)
-	checkForMultipleUse(nonPositionalFlags)
+	checkForConflicts(givenNonPositionalFlags)
+	checkForMissingMandatoryFlags(programFlags, givenNonPositionalFlags, givenPositionalFlags)
+	checkForMultipleUse(givenNonPositionalFlags)
 }
 
 func parseNonPositional(flag flag, strct any, index int) int {
@@ -151,33 +153,34 @@ func parseNonPositional(flag flag, strct any, index int) int {
 		setBool(strct, flag.name, true)
 		return index
 	} else if flag.kind == reflect.String {
-		val := parseNonPositionalString(index, flag.name)
+		val := parseNonPositionalString(index, flag)
 		setString(strct, flag.name, val)
 		return index + 1
 	} else if flag.kind == reflect.Int {
-		val := parseNonPositionalInt(index, flag.name)
+		val := parseNonPositionalInt(index, flag)
 		setInt(strct, flag.name, val)
 		return index + 1
 	} else if flag.kind == reflect.Float64 {
-		val := parseNonPositionalFloat(index, flag.name)
+		val := parseNonPositionalFloat(index, flag)
 		setFloat(strct, flag.name, val)
 		return index + 1
 	} else if flag.kind == reflect.Slice {
 		innerKind := flag.type_.Elem().Kind()
 		var val any
 		if innerKind == reflect.String {
-			val = parseNonPositionalString(index, flag.name)
+			val = parseNonPositionalString(index, flag)
 		} else if innerKind == reflect.Int {
-			val = parseNonPositionalInt(index, flag.name)
+			val = parseNonPositionalInt(index, flag)
 		} else if innerKind == reflect.Float64 {
-			val = parseNonPositionalFloat(index, flag.name)
+			val = parseNonPositionalFloat(index, flag)
 		} else {
-			panic("not implemented flag kind []" + innerKind.String())
+			developerError("not implemented flag kind []" + innerKind.String())
 		}
 		addToSlice(strct, flag.name, val)
 		return index + 1
 	} else {
-		panic(fmt.Sprintf("not implemented flag kind: %v", flag.kind))
+		developerError(fmt.Sprintf("not implemented flag kind: %v", flag.kind))
+		panic("unreachable")
 	}
 }
 
@@ -189,50 +192,50 @@ func parsePositional(flag flag, strct any, index int) int {
 		arg := os.Args[index]
 		val, err := strconv.Atoi(arg)
 		if err != nil {
-			panic("value is not an int: " + arg)
+			developerError("value is not an int: " + arg)
 		}
 		setInt(strct, flag.name, val)
 	} else if flag.kind == reflect.Float64 {
 		arg := os.Args[index]
 		val, err := strconv.ParseFloat(arg, 64)
 		if err != nil {
-			panic("value is not a float: " + arg)
+			developerError("value is not a float: " + arg)
 		}
 		setFloat(strct, flag.name, val)
 	} else {
-		panic(fmt.Sprintf("not implemented flag kind: %v", flag.kind))
+		developerError(fmt.Sprintf("not implemented flag kind: %v", flag.kind))
 	}
 	return index
 }
 
-func parseNonPositionalString(index int, name string) string {
+func parseNonPositionalString(index int, flag flag) string {
 	if index+1 >= len(os.Args) {
-		panic("missing value for: " + name)
+		userError(fmt.Sprintf("missing value for: --%s (-%s)", flag.long, flag.short))
 	}
 	val := os.Args[index+1]
 	return val
 }
 
-func parseNonPositionalInt(index int, name string) int {
+func parseNonPositionalInt(index int, flag flag) int {
 	if index+1 >= len(os.Args) {
-		panic("missing value for: " + name)
+		userError(fmt.Sprintf("missing value for: --%s (-%s)", flag.long, flag.short))
 	}
 	arg := os.Args[index+1]
 	val, err := strconv.Atoi(arg)
 	if err != nil {
-		panic("value is not an int: " + arg)
+		userError("value is not an int: " + arg)
 	}
 	return val
 }
 
-func parseNonPositionalFloat(index int, name string) float64 {
+func parseNonPositionalFloat(index int, flag flag) float64 {
 	if index+1 >= len(os.Args) {
-		panic("missing value for: " + name)
+		userError(fmt.Sprintf("missing value for: --%s (-%s)", flag.long, flag.short))
 	}
 	arg := os.Args[index+1]
 	val, err := strconv.ParseFloat(arg, 64)
 	if err != nil {
-		panic("value is not a float: " + arg)
+		userError("value is not a float: " + arg)
 	}
 	return val
 }
@@ -295,64 +298,64 @@ func checkForNameCollisions(flags []flag) {
 		if !exists {
 			seen[flag.long] = flag
 		} else {
-			panic(fmt.Sprintf("flag name collision: %s (--%s) with %s (--%s)", flag.name, flag.long, existing.name, existing.long))
+			developerError(fmt.Sprintf("flag name collision: %s (--%s) with %s (--%s)", flag.name, flag.long, existing.name, existing.long))
 		}
 		existing, exists = seen[flag.short]
 		if !exists {
 			seen[flag.short] = flag
 		} else {
-			panic(fmt.Sprintf("flag name collision: %s (-%s) with %s (-%s)", flag.name, flag.short, existing.name, existing.short))
+			developerError(fmt.Sprintf("flag name collision: %s (-%s) with %s (-%s)", flag.name, flag.short, existing.name, existing.short))
 		}
 	}
 }
 
-func checkForConflicts(providedFlags []flag) {
-	for _, outerFlag := range providedFlags {
+func checkForConflicts(givenNonPositionalFlags []flag) {
+	for _, outerFlag := range givenNonPositionalFlags {
 		for _, inConflict := range outerFlag.conflictsWith {
-			for _, innerFlag := range providedFlags {
+			for _, innerFlag := range givenNonPositionalFlags {
 				if innerFlag.name == inConflict {
-					panic(fmt.Sprintf("conflicting flags: --%s (-%s), --%s (-%s)", outerFlag.long, outerFlag.short, innerFlag.long, innerFlag.short))
+					developerError(fmt.Sprintf("conflicting flags: --%s (-%s), --%s (-%s)", outerFlag.long, outerFlag.short, innerFlag.long, innerFlag.short))
 				}
 			}
 		}
 	}
 }
 
-func checkForMissingMandatoryFlags(flags []flag, nonPositionalFlags []flag, positionalFlags []flag) {
-	providedFlags := make([]flag, 0)
-	for _, nonPositionalFlag := range nonPositionalFlags {
-		providedFlags = append(providedFlags, nonPositionalFlag)
+func checkForMissingMandatoryFlags(programFlags []flag, givenNonPositionalFlags []flag, givenPositionalFlags []flag) {
+	givenFlags := make([]flag, 0)
+	for _, nonPositionalFlag := range givenNonPositionalFlags {
+		givenFlags = append(givenFlags, nonPositionalFlag)
 	}
-	for _, positionalFlag := range positionalFlags {
-		providedFlags = append(providedFlags, positionalFlag)
+	for _, positionalFlag := range givenPositionalFlags {
+		givenFlags = append(givenFlags, positionalFlag)
 	}
 
 outer:
-	for _, flag := range flags {
+	for _, flag := range programFlags {
 		if flag.mandatory {
-			for _, providedFlag := range providedFlags {
-				if providedFlag.name == flag.name {
+			for _, givenFlag := range givenFlags {
+				if givenFlag.name == flag.name {
 					continue outer
 				}
 			}
 			if flag.positional {
-				panic(fmt.Sprintf("missing mandatory positional flag: %s", flag.name))
+				userError(fmt.Sprintf("missing mandatory positional flag: %s", flag.name))
 			} else {
-				panic(fmt.Sprintf("missing mandatory flag: --%s (-%s)", flag.long, flag.short))
+				userError(fmt.Sprintf("missing mandatory flag: --%s (-%s)", flag.long, flag.short))
 			}
 		}
 	}
 }
 
-func checkForMultipleUse(providedFlags []flag) {
+func checkForMultipleUse(givenNonPositionalFlags []flag) {
 	seen := make(map[string]bool)
-	for _, flag := range providedFlags {
+	for _, flag := range givenNonPositionalFlags {
 		_, exists := seen[flag.name]
 		if !exists {
 			seen[flag.name] = true
 		} else {
 			if flag.kind != reflect.Slice {
-				panic(fmt.Sprintf("multiple use of flag --%s (-%s)", flag.long, flag.short))
+				userError(fmt.Sprintf("multiple use of flag --%s (-%s)", flag.long, flag.short))
 			}
 		}
 	}
@@ -518,4 +521,13 @@ func printHelp(flags []flag, w io.Writer) {
 			fmt.Fprintf(w, "  %-*s  %s%s\n", maxLabelLen, f.name, f.description, reqMark)
 		}
 	}
+}
+
+func developerError(msg string) {
+	panic(msg)
+}
+
+func userError(msg string) {
+	fmt.Fprintln(os.Stderr, msg)
+	os.Exit(1)
 }
