@@ -3,25 +3,25 @@ package main
 import (
 	"fmt"
 
-	"github.com/tobiashort/flag-go"
+	"github.com/tobiashort/clap-go"
 )
 
 type Args struct {
-	Name           string   `flag:"mandatory,description='Full name of the new employee'"`
-	Email          string   `flag:"description='Company email address to assign'"`
-	Position       string   `flag:"long=title,short=t,description='Job title (e.g., Backend Engineer)'"`
-	FullTime       bool     `flag:"short=F,long=full-time,conflicts-with=PartTime,description='Mark as full-time employee'"`
-	PartTime       bool     `flag:"short=P,long=part-time,description='Mark as part-time employee'"`
-	Apprenticeship bool     `flag:"short=A,description='Indicates the employee is joining as an apprentice'"`
-	Salary         int      `flag:"default-value=9999,description='Starting salary in USD'"`
-	TeamsChannel   []string `flag:"long=notify,short=N,description='Slack team channels to notify (e.g., #eng, #ops)'"`
-	EmployeeID     string   `flag:"positional,mandatory,description='Unique employee ID'"`
-	Department     string   `flag:"positional,default-value=Design,description='Department name (e.g., Engineering, HR)'"`
+	Name           string   `clap:"mandatory,description='Full name of the new employee'"`
+	Email          string   `clap:"description='Company email address to assign'"`
+	Position       string   `clap:"long=title,short=t,description='Job title (e.g., Backend Engineer)'"`
+	FullTime       bool     `clap:"short=F,long=full-time,conflicts-with=PartTime,description='Mark as full-time employee'"`
+	PartTime       bool     `clap:"short=P,long=part-time,description='Mark as part-time employee'"`
+	Apprenticeship bool     `clap:"short=A,description='Indicates the employee is joining as an apprentice'"`
+	Salary         int      `clap:"default-value=9999,description='Starting salary in USD'"`
+	TeamsChannel   []string `clap:"long=notify,short=N,description='Slack team channels to notify (e.g., #eng, #ops)'"`
+	EmployeeID     string   `clap:"positional,mandatory,description='Unique employee ID'"`
+	Department     string   `clap:"positional,default-value=Design,description='Department name (e.g., Engineering, HR)'"`
 }
 
 func main() {
 	args := Args{}
-	flag.Parse(&args)
+	clap.Parse(&args)
 
 	empType := "Contractor"
 	if args.FullTime {

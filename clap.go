@@ -1,4 +1,4 @@
-package flag
+package clap
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-type flag struct {
+type arg struct {
 	name          string
 	type_         reflect.Type
 	kind          reflect.Kind
@@ -62,7 +62,7 @@ func parse(strct any) {
 
 	strctType := reflect.TypeOf(strct).Elem()
 
-	programFlags := make([]flag, 0)
+	programArgs := make([]arg, 0)
 
 	for i := range strctType.NumField() {
 		field := strctType.Field(i)
@@ -77,7 +77,7 @@ func parse(strct any) {
 			defaultValue  = ""
 		)
 
-		tag := field.Tag.Get("flag")
+		tag := field.Tag.Get("clap")
 		if tag != "" {
 			tagValues := parseTagValues(tag)
 
@@ -102,7 +102,7 @@ func parse(strct any) {
 			}
 		}
 
-		programFlags = append(programFlags, flag{
+		programArgs = append(programArgs, arg{
 			name:          field.Name,
 			type_:         field.Type,
 			kind:          field.Type.Kind(),
@@ -116,7 +116,7 @@ func parse(strct any) {
 		})
 	}
 
-	implicitHelpFlag := flag{
+	implicitHelpArg := arg{
 		name:        "Help",
 		type_:       reflect.TypeOf(true),
 		kind:        reflect.Bool,
@@ -125,157 +125,157 @@ func parse(strct any) {
 		description: "Show this help message and exit",
 	}
 
-	programFlags = append(programFlags, implicitHelpFlag)
+	programArgs = append(programArgs, implicitHelpArg)
 
-	checkForNameCollisions(programFlags)
+	checkForNameCollisions(programArgs)
 
-	programPositionalFlags := make([]flag, 0)
-	for _, flag := range programFlags {
-		if flag.positional {
-			programPositionalFlags = append(programPositionalFlags, flag)
+	programPositionalArgs := make([]arg, 0)
+	for _, arg := range programArgs {
+		if arg.positional {
+			programPositionalArgs = append(programPositionalArgs, arg)
 		}
 	}
 
-	givenNonPositionalFlags := make([]flag, 0)
-	givenPositionalFlags := make([]flag, 0)
-	positionalFlagIndex := 0
+	givenNonPositionalArgs := make([]arg, 0)
+	givenPositionalArgs := make([]arg, 0)
+	positionalArgIndex := 0
 
 	for i := 1; i < len(os.Args); i++ {
 		arg := os.Args[i]
 		if strings.HasPrefix(arg, "--") {
 			long := arg[2:]
 			if long == "help" {
-				printHelp(programFlags, os.Stdout)
+				printHelp(programArgs, os.Stdout)
 				os.Exit(0)
 			}
-			flag, ok := getFlagByLongName(programFlags, long)
+			arg, ok := getArgByLongName(programArgs, long)
 			if !ok {
-				userErr("unknown flag: --" + long)
+				userErr("unknown argument: --" + long)
 			} else {
-				givenNonPositionalFlags = append(givenNonPositionalFlags, flag)
+				givenNonPositionalArgs = append(givenNonPositionalArgs, arg)
 			}
-			i = parseNonPositionalAtIndex(flag, strct, i)
+			i = parseNonPositionalAtIndex(arg, strct, i)
 		} else if strings.HasPrefix(arg, "-") {
 			shortGrouped := arg[1:]
 			for _, rune := range shortGrouped {
 				short := string(rune)
 				if short == "h" {
-					printHelp(programFlags, os.Stdout)
+					printHelp(programArgs, os.Stdout)
 					os.Exit(0)
 				}
-				flag, ok := getFlagByShortName(programFlags, short)
+				arg, ok := getArgByShortName(programArgs, short)
 				if !ok {
-					userErr("unknown flag: -" + short)
+					userErr("unknown argument: -" + short)
 				} else {
-					givenNonPositionalFlags = append(givenNonPositionalFlags, flag)
+					givenNonPositionalArgs = append(givenNonPositionalArgs, arg)
 				}
-				i = parseNonPositionalAtIndex(flag, strct, i)
+				i = parseNonPositionalAtIndex(arg, strct, i)
 			}
 		} else {
-			if positionalFlagIndex >= len(programPositionalFlags) {
+			if positionalArgIndex >= len(programPositionalArgs) {
 				userErr("too many arguments")
 			} else {
-				positionalFlag := programPositionalFlags[positionalFlagIndex]
-				givenPositionalFlags = append(givenPositionalFlags, positionalFlag)
-				parsePositionalAtIndex(positionalFlag, strct, i)
-				positionalFlagIndex++
+				positionalArg := programPositionalArgs[positionalArgIndex]
+				givenPositionalArgs = append(givenPositionalArgs, positionalArg)
+				parsePositionalAtIndex(positionalArg, strct, i)
+				positionalArgIndex++
 			}
 		}
 	}
 
-	checkForConflicts(givenNonPositionalFlags)
-	checkForMissingMandatoryFlags(programFlags, givenNonPositionalFlags, givenPositionalFlags)
-	checkForMultipleUse(givenNonPositionalFlags)
+	checkForConflicts(givenNonPositionalArgs)
+	checkForMissingMandatoryArgs(programArgs, givenNonPositionalArgs, givenPositionalArgs)
+	checkForMultipleUse(givenNonPositionalArgs)
 
 outer:
-	for _, flag := range programFlags {
-		if flag.defaultValue == "" {
+	for _, arg := range programArgs {
+		if arg.defaultValue == "" {
 			continue
 		}
-		for _, givenFlag := range givenNonPositionalFlags {
-			if flag.name == givenFlag.name {
+		for _, givenArg := range givenNonPositionalArgs {
+			if arg.name == givenArg.name {
 				continue outer
 			}
 		}
-		for _, givenFlag := range givenPositionalFlags {
-			if flag.name == givenFlag.name {
+		for _, givenArg := range givenPositionalArgs {
+			if arg.name == givenArg.name {
 				continue outer
 			}
 		}
-		if flag.positional {
-			parsePositional(flag, strct, flag.defaultValue)
+		if arg.positional {
+			parsePositional(arg, strct, arg.defaultValue)
 		} else {
-			parseNonPositional(flag, strct, flag.defaultValue)
+			parseNonPositional(arg, strct, arg.defaultValue)
 		}
 	}
 }
 
-func parseNonPositionalAtIndex(flag flag, strct any, index int) int {
-	if flag.kind == reflect.Bool {
-		parseNonPositional(flag, strct, "")
+func parseNonPositionalAtIndex(arg arg, strct any, index int) int {
+	if arg.kind == reflect.Bool {
+		parseNonPositional(arg, strct, "")
 		return index
 	} else {
 		if index+1 >= len(os.Args) {
-			userErr(fmt.Sprintf("missing value for: -%s|--%s", flag.short, flag.long))
+			userErr(fmt.Sprintf("missing value for: -%s|--%s", arg.short, arg.long))
 		}
-		arg := os.Args[index+1]
-		parseNonPositional(flag, strct, arg)
+		value := os.Args[index+1]
+		parseNonPositional(arg, strct, value)
 		return index + 1
 	}
 }
 
-func parseNonPositional(flag flag, strct any, arg string) {
-	if flag.kind == reflect.Bool {
-		setBool(strct, flag.name, true)
-	} else if flag.kind == reflect.String {
-		setString(strct, flag.name, arg)
-	} else if flag.kind == reflect.Int {
-		val := parseInt(arg)
-		setInt(strct, flag.name, val)
-	} else if flag.kind == reflect.Float64 {
-		val := parseFloat(arg)
-		setFloat(strct, flag.name, val)
-	} else if flag.kind == reflect.Slice {
-		innerKind := flag.type_.Elem().Kind()
+func parseNonPositional(arg arg, strct any, value string) {
+	if arg.kind == reflect.Bool {
+		setBool(strct, arg.name, true)
+	} else if arg.kind == reflect.String {
+		setString(strct, arg.name, value)
+	} else if arg.kind == reflect.Int {
+		val := parseInt(value)
+		setInt(strct, arg.name, val)
+	} else if arg.kind == reflect.Float64 {
+		val := parseFloat(value)
+		setFloat(strct, arg.name, val)
+	} else if arg.kind == reflect.Slice {
+		innerKind := arg.type_.Elem().Kind()
 		var val any
 		if innerKind == reflect.String {
-			val = arg
+			val = value
 		} else if innerKind == reflect.Int {
-			val = parseInt(arg)
+			val = parseInt(value)
 		} else if innerKind == reflect.Float64 {
-			val = parseFloat(arg)
+			val = parseFloat(value)
 		} else {
-			developerErr("not implemented flag kind []" + innerKind.String())
+			developerErr("not implemented argument kind []" + innerKind.String())
 		}
-		addToSlice(strct, flag.name, val)
+		addToSlice(strct, arg.name, val)
 	} else {
-		developerErr(fmt.Sprintf("not implemented flag kind: %v", flag.kind))
+		developerErr(fmt.Sprintf("not implemented argument kind: %v", arg.kind))
 		panic("unreachable")
 	}
 }
 
-func parsePositionalAtIndex(flag flag, strct any, index int) {
-	arg := os.Args[index]
-	parsePositional(flag, strct, arg)
+func parsePositionalAtIndex(arg arg, strct any, index int) {
+	value := os.Args[index]
+	parsePositional(arg, strct, value)
 }
 
-func parsePositional(flag flag, strct any, arg string) {
-	if flag.kind == reflect.String {
-		setString(strct, flag.name, arg)
-	} else if flag.kind == reflect.Int {
-		val, err := strconv.Atoi(arg)
+func parsePositional(arg arg, strct any, value string) {
+	if arg.kind == reflect.String {
+		setString(strct, arg.name, value)
+	} else if arg.kind == reflect.Int {
+		val, err := strconv.Atoi(value)
 		if err != nil {
-			developerErr("value is not an int: " + arg)
+			developerErr("value is not an int: " + value)
 		}
-		setInt(strct, flag.name, val)
-	} else if flag.kind == reflect.Float64 {
-		val, err := strconv.ParseFloat(arg, 64)
+		setInt(strct, arg.name, val)
+	} else if arg.kind == reflect.Float64 {
+		val, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			developerErr("value is not a float: " + arg)
+			developerErr("value is not a float: " + value)
 		}
-		setFloat(strct, flag.name, val)
+		setFloat(strct, arg.name, val)
 	} else {
-		developerErr(fmt.Sprintf("not implemented flag kind: %v", flag.kind))
+		developerErr(fmt.Sprintf("not implemented argument kind: %v", arg.kind))
 	}
 }
 
@@ -300,22 +300,22 @@ func isStructPointer(strct any) bool {
 	return t.Kind() == reflect.Ptr && t.Elem().Kind() == reflect.Struct
 }
 
-func getFlagByLongName(flags []flag, name string) (flag, bool) {
-	for _, flag := range flags {
-		if flag.long == name {
-			return flag, true
+func getArgByLongName(args []arg, name string) (arg, bool) {
+	for _, arg := range args {
+		if arg.long == name {
+			return arg, true
 		}
 	}
-	return flag{}, false
+	return arg{}, false
 }
 
-func getFlagByShortName(flags []flag, name string) (flag, bool) {
-	for _, flag := range flags {
-		if flag.short == name {
-			return flag, true
+func getArgByShortName(args []arg, name string) (arg, bool) {
+	for _, arg := range args {
+		if arg.short == name {
+			return arg, true
 		}
 	}
-	return flag{}, false
+	return arg{}, false
 }
 
 func setInt(strct any, name string, val int) {
@@ -343,75 +343,75 @@ func addToSlice(strct any, name string, val any) {
 	field.Set(updatedSlice)
 }
 
-func checkForNameCollisions(flags []flag) {
-	seenLong := make(map[string]flag)
-	seenShort := make(map[string]flag)
-	for _, flag := range flags {
-		if flag.positional {
+func checkForNameCollisions(args []arg) {
+	seenLong := make(map[string]arg)
+	seenShort := make(map[string]arg)
+	for _, arg := range args {
+		if arg.positional {
 			continue
 		}
-		existing, exists := seenLong[flag.long]
+		existing, exists := seenLong[arg.long]
 		if !exists {
-			seenLong[flag.long] = flag
+			seenLong[arg.long] = arg
 		} else {
-			developerErr(fmt.Sprintf("flag name collision: %s (--%s) with %s (--%s)", flag.name, flag.long, existing.name, existing.long))
+			developerErr(fmt.Sprintf("argument name collision: %s (--%s) with %s (--%s)", arg.name, arg.long, existing.name, existing.long))
 		}
-		existing, exists = seenShort[flag.short]
+		existing, exists = seenShort[arg.short]
 		if !exists {
-			seenShort[flag.short] = flag
+			seenShort[arg.short] = arg
 		} else {
-			developerErr(fmt.Sprintf("flag name collision: %s (-%s) with %s (-%s)", flag.name, flag.short, existing.name, existing.short))
+			developerErr(fmt.Sprintf("argument name collision: %s (-%s) with %s (-%s)", arg.name, arg.short, existing.name, existing.short))
 		}
 	}
 }
 
-func checkForConflicts(givenNonPositionalFlags []flag) {
-	for _, outerFlag := range givenNonPositionalFlags {
-		for _, inConflict := range outerFlag.conflictsWith {
-			for _, innerFlag := range givenNonPositionalFlags {
-				if innerFlag.name == inConflict {
-					developerErr(fmt.Sprintf("conflicting flags: -%s|--%s, -%s|--%s", outerFlag.short, outerFlag.long, innerFlag.short, innerFlag.long))
+func checkForConflicts(givenNonPositionalArgs []arg) {
+	for _, outerArg := range givenNonPositionalArgs {
+		for _, inConflict := range outerArg.conflictsWith {
+			for _, innerArg := range givenNonPositionalArgs {
+				if innerArg.name == inConflict {
+					developerErr(fmt.Sprintf("conflicting arguments: -%s|--%s, -%s|--%s", outerArg.short, outerArg.long, innerArg.short, innerArg.long))
 				}
 			}
 		}
 	}
 }
 
-func checkForMissingMandatoryFlags(programFlags []flag, givenNonPositionalFlags []flag, givenPositionalFlags []flag) {
-	givenFlags := make([]flag, 0)
-	for _, nonPositionalFlag := range givenNonPositionalFlags {
-		givenFlags = append(givenFlags, nonPositionalFlag)
+func checkForMissingMandatoryArgs(programArgs []arg, givenNonPositionalArgs []arg, givenPositionalArgs []arg) {
+	givenArgs := make([]arg, 0)
+	for _, nonPositionalArg := range givenNonPositionalArgs {
+		givenArgs = append(givenArgs, nonPositionalArg)
 	}
-	for _, positionalFlag := range givenPositionalFlags {
-		givenFlags = append(givenFlags, positionalFlag)
+	for _, positionalArg := range givenPositionalArgs {
+		givenArgs = append(givenArgs, positionalArg)
 	}
 
 outer:
-	for _, flag := range programFlags {
-		if flag.mandatory {
-			for _, givenFlag := range givenFlags {
-				if givenFlag.name == flag.name {
+	for _, arg := range programArgs {
+		if arg.mandatory {
+			for _, givenArg := range givenArgs {
+				if givenArg.name == arg.name {
 					continue outer
 				}
 			}
-			if flag.positional {
-				userErr(fmt.Sprintf("missing mandatory positional flag: %s", flag.name))
+			if arg.positional {
+				userErr(fmt.Sprintf("missing mandatory positional argument: %s", arg.name))
 			} else {
-				userErr(fmt.Sprintf("missing mandatory flag: -%s|--%s", flag.short, flag.long))
+				userErr(fmt.Sprintf("missing mandatory argument: -%s|--%s", arg.short, arg.long))
 			}
 		}
 	}
 }
 
-func checkForMultipleUse(givenNonPositionalFlags []flag) {
+func checkForMultipleUse(givenNonPositionalArgs []arg) {
 	seen := make(map[string]bool)
-	for _, flag := range givenNonPositionalFlags {
-		_, exists := seen[flag.name]
+	for _, arg := range givenNonPositionalArgs {
+		_, exists := seen[arg.name]
 		if !exists {
-			seen[flag.name] = true
+			seen[arg.name] = true
 		} else {
-			if flag.kind != reflect.Slice {
-				userErr(fmt.Sprintf("multiple use of flag -%s|--%s", flag.short, flag.long))
+			if arg.kind != reflect.Slice {
+				userErr(fmt.Sprintf("multiple use of argument -%s|--%s", arg.short, arg.long))
 			}
 		}
 	}
@@ -457,34 +457,34 @@ func parseTagValues(tag string) []string {
 	return tagValues
 }
 
-func printHelp(flags []flag, w io.Writer) {
+func printHelp(args []arg, w io.Writer) {
 	var usageParts []string
 	usageParts = append(usageParts, filepath.Base(os.Args[0]))
 
-	for _, f := range flags {
+	for _, f := range args {
 		if !f.mandatory {
 			usageParts = append(usageParts, "[OPTIONS]")
 			break
 		}
 	}
 
-	for _, f := range flags {
+	for _, f := range args {
 		if f.positional {
 			continue
 		}
 
-		flagSyntax := fmt.Sprintf("--%s <%s>", f.long, f.name)
+		argSyntax := fmt.Sprintf("--%s <%s>", f.long, f.name)
 		if f.kind == reflect.Slice {
-			flagSyntax = flagSyntax + " ..."
+			argSyntax = argSyntax + " ..."
 		}
 
 		if f.mandatory {
-			usageParts = append(usageParts, flagSyntax)
+			usageParts = append(usageParts, argSyntax)
 		}
 	}
 
 	// Add positional arguments
-	for _, f := range flags {
+	for _, f := range args {
 		if f.positional {
 			if f.mandatory {
 				usageParts = append(usageParts, "<"+f.name+">")
@@ -500,7 +500,7 @@ func printHelp(flags []flag, w io.Writer) {
 
 	// Determine label width
 	maxLabelLen := 0
-	getLabel := func(f flag) string {
+	getLabel := func(f arg) string {
 		var parts []string
 		parts = append(parts, "-"+f.short)
 		parts = append(parts, "--"+f.long)
@@ -515,7 +515,7 @@ func printHelp(flags []flag, w io.Writer) {
 	}
 
 	labels := make(map[string]string)
-	for _, f := range flags {
+	for _, f := range args {
 		if !f.positional {
 			labels[f.name] = getLabel(f)
 		}
@@ -523,7 +523,7 @@ func printHelp(flags []flag, w io.Writer) {
 
 	// Required options
 	hasRequired := false
-	for _, f := range flags {
+	for _, f := range args {
 		if !f.positional && f.mandatory {
 			if !hasRequired {
 				fmt.Fprintln(w, "Required options:")
@@ -542,7 +542,7 @@ func printHelp(flags []flag, w io.Writer) {
 
 	// Optional options
 	hasOptional := false
-	for _, f := range flags {
+	for _, f := range args {
 		if !f.positional && !f.mandatory {
 			if !hasOptional {
 				fmt.Fprintln(w, "Options:")
@@ -561,7 +561,7 @@ func printHelp(flags []flag, w io.Writer) {
 
 	// Positional arguments
 	hasPositional := false
-	for _, f := range flags {
+	for _, f := range args {
 		if f.positional {
 			if !hasPositional {
 				fmt.Fprintln(w, "Positional arguments:")

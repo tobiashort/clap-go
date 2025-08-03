@@ -1,4 +1,4 @@
-package flag
+package clap
 
 import (
 	"os"
@@ -12,10 +12,10 @@ func withArgs(args []string, fn func()) {
 	fn()
 }
 
-func TestMandatoryFlag(t *testing.T) {
+func TestMandatoryArg(t *testing.T) {
 	withArgs([]string{"prog", "--name", "Alice"}, func() {
 		type Args struct {
-			Name string `flag:"mandatory,long=name"`
+			Name string `clap:"mandatory,long=name"`
 		}
 
 		args := Args{}
@@ -30,7 +30,7 @@ func TestMandatoryFlag(t *testing.T) {
 func TestDefaultValue(t *testing.T) {
 	withArgs([]string{"prog"}, func() {
 		type Args struct {
-			Salary int `flag:"default-value=9999"`
+			Salary int `clap:"default-value=9999"`
 		}
 
 		args := Args{}
@@ -42,10 +42,10 @@ func TestDefaultValue(t *testing.T) {
 	})
 }
 
-func TestShortAndLongFlags(t *testing.T) {
+func TestShortAndLongArgs(t *testing.T) {
 	withArgs([]string{"prog", "-F"}, func() {
 		type Args struct {
-			FullTime bool `flag:"short=F,long=full-time"`
+			FullTime bool `clap:"short=F,long=full-time"`
 		}
 
 		args := Args{}
@@ -58,14 +58,14 @@ func TestShortAndLongFlags(t *testing.T) {
 
 	withArgs([]string{"prog", "--full-time"}, func() {
 		type Args struct {
-			FullTime bool `flag:"short=F,long=full-time"`
+			FullTime bool `clap:"short=F,long=full-time"`
 		}
 
 		args := Args{}
 		parse(&args)
 
 		if !args.FullTime {
-			t.Fatal("expected FullTime to be true via long flag")
+			t.Fatal("expected FullTime to be true via long argument")
 		}
 	})
 }
@@ -87,7 +87,7 @@ func TestShortGrouped(t *testing.T) {
 	})
 }
 
-func TestConflictingFlags(t *testing.T) {
+func TestConflictingArgs(t *testing.T) {
 	withArgs([]string{"prog", "-F", "-P"}, func() {
 		defer func() {
 			if r := recover(); r == nil {
@@ -96,8 +96,8 @@ func TestConflictingFlags(t *testing.T) {
 		}()
 
 		type Args struct {
-			FullTime bool `flag:"short=F,long=full-time,conflicts-with=PartTime"`
-			PartTime bool `flag:"short=P"`
+			FullTime bool `clap:"short=F,long=full-time,conflicts-with=PartTime"`
+			PartTime bool `clap:"short=P"`
 		}
 
 		args := Args{}
@@ -105,10 +105,10 @@ func TestConflictingFlags(t *testing.T) {
 	})
 }
 
-func TestStringFlag(t *testing.T) {
+func TestStringArg(t *testing.T) {
 	withArgs([]string{"prog", "--email", "test@company.com"}, func() {
 		type Args struct {
-			Email string `flag:"long=email"`
+			Email string `clap:"long=email"`
 		}
 
 		args := Args{}
@@ -120,10 +120,10 @@ func TestStringFlag(t *testing.T) {
 	})
 }
 
-func TestStringSliceFlag(t *testing.T) {
+func TestStringSliceArg(t *testing.T) {
 	withArgs([]string{"prog", "-N", "#eng", "-N", "#ops"}, func() {
 		type Args struct {
-			Notify []string `flag:"short=N,long=notify"`
+			Notify []string `clap:"short=N,long=notify"`
 		}
 
 		args := Args{}
@@ -138,8 +138,8 @@ func TestStringSliceFlag(t *testing.T) {
 func TestPositionalArgs(t *testing.T) {
 	withArgs([]string{"prog", "EMP123", "Engineering"}, func() {
 		type Args struct {
-			EmployeeID string `flag:"positional,mandatory"`
-			Department string `flag:"positional"`
+			EmployeeID string `clap:"positional,mandatory"`
+			Department string `clap:"positional"`
 		}
 
 		args := Args{}
@@ -157,8 +157,8 @@ func TestPositionalArgs(t *testing.T) {
 func TestPositionalDefault(t *testing.T) {
 	withArgs([]string{"prog", "EMP999"}, func() {
 		type Args struct {
-			EmployeeID string `flag:"positional,mandatory"`
-			Department string `flag:"positional,default-value=Design"`
+			EmployeeID string `clap:"positional,mandatory"`
+			Department string `clap:"positional,default-value=Design"`
 		}
 
 		args := Args{}
@@ -173,7 +173,7 @@ func TestPositionalDefault(t *testing.T) {
 func TestBoolDefaultFalse(t *testing.T) {
 	withArgs([]string{"prog"}, func() {
 		type Args struct {
-			Apprenticeship bool `flag:"short=A"`
+			Apprenticeship bool `clap:"short=A"`
 		}
 
 		args := Args{}
@@ -194,7 +194,7 @@ func TestMissingMandatoryPanics(t *testing.T) {
 		}()
 
 		type Args struct {
-			Name string `flag:"mandatory"`
+			Name string `clap:"mandatory"`
 		}
 
 		args := Args{}
