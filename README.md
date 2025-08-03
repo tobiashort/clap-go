@@ -106,12 +106,12 @@ Options:
   -F, --full-time              Mark as full-time employee
   -P, --part-time              Mark as part-time employee
   -A, --apprenticeship         Indicates the employee is joining as an apprentice
-  -s, --salary <Salary>        Starting salary in USD
+  -s, --salary <Salary>        Starting salary in USD (default 9999)
   -N, --notify <TeamsChannel>  Slack team channels to notify (e.g., #eng, #ops) (can be specified multiple times)
   -h, --help                   Show this help message and exit
 
 Positional arguments:
-  EmployeeID                   Unique employee ID (required)
+  EmployeeID                   Unique employee ID
   Department                   Department name (e.g., Engineering, HR)
 ```
 

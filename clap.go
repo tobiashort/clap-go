@@ -550,6 +550,9 @@ func printHelp(args []arg, w io.Writer) {
 			if f.kind == reflect.Slice {
 				desc += " (can be specified multiple times)"
 			}
+			if f.defaultValue != "" {
+				desc += fmt.Sprintf(" (default: %s)", f.defaultValue)
+			}
 			fmt.Fprintf(w, "  %-*s  %s\n", maxLabelLen, labels[f.name], desc)
 		}
 	}
@@ -569,6 +572,9 @@ func printHelp(args []arg, w io.Writer) {
 			if f.kind == reflect.Slice {
 				desc += " (can be specified multiple times)"
 			}
+			if f.defaultValue != "" {
+				desc += fmt.Sprintf(" (default: %s)", f.defaultValue)
+			}
 			fmt.Fprintf(w, "  %-*s  %s\n", maxLabelLen, labels[f.name], desc)
 		}
 	}
@@ -584,11 +590,14 @@ func printHelp(args []arg, w io.Writer) {
 				fmt.Fprintln(w, "Positional arguments:")
 				hasPositional = true
 			}
-			reqMark := ""
+			desc := f.description
 			if f.mandatory {
-				reqMark = " (required)"
+				desc += " (required)"
 			}
-			fmt.Fprintf(w, "  %-*s  %s%s\n", maxLabelLen, f.name, f.description, reqMark)
+			if f.defaultValue != "" {
+				desc += fmt.Sprintf(" (default: %s)", f.defaultValue)
+			}
+			fmt.Fprintf(w, "  %-*s  %s\n", maxLabelLen, f.name, f.description)
 		}
 	}
 }
