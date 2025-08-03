@@ -21,6 +21,8 @@ type Args struct {
 
 func main() {
 	args := Args{}
+	clap.Prog("example")
+	clap.Description("This example shall demonstrate how this command line argument parsers works.")
 	clap.Parse(&args)
 
 	empType := "Contractor"

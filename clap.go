@@ -10,6 +10,11 @@ import (
 	"strings"
 )
 
+var (
+	prog        string = filepath.Base(os.Args[0])
+	description string = ""
+)
+
 type arg struct {
 	name          string
 	type_         reflect.Type
@@ -37,6 +42,14 @@ type developerError struct {
 
 func (err developerError) Error() string {
 	return err.msg
+}
+
+func Prog(s string) {
+	prog = s
+}
+
+func Description(s string) {
+	description = s
 }
 
 func Parse(strct any) {
@@ -458,8 +471,12 @@ func parseTagValues(tag string) []string {
 }
 
 func printHelp(args []arg, w io.Writer) {
+	if description != "" {
+		fmt.Fprintf(w, "%s\n\n", description)
+	}
+
 	var usageParts []string
-	usageParts = append(usageParts, filepath.Base(os.Args[0]))
+	usageParts = append(usageParts, prog)
 
 	for _, f := range args {
 		if !f.mandatory {
