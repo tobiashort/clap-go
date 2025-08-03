@@ -1,8 +1,6 @@
-# 🏴 clap-go
+# clap-go
 
 A command line argument parser in go. Inspired by [clap-rs/clap](https://github.com/clap-rs/clap).
-
----
 
 ## ✨ Features
 
@@ -15,8 +13,6 @@ A command line argument parser in go. Inspired by [clap-rs/clap](https://github.
   - `conflicts-with` (mutually exclusive arguments)
 - Parses booleans, strings, ints, slices, etc.
 - Automatically generates usage messages
-
----
 
 ## 📦 Installation
 
