@@ -48,10 +48,10 @@ type Args struct {
 	FullTime       bool     `flag:"short=F,long=full-time,conflicts-with=PartTime,description='Mark as full-time employee'"`
 	PartTime       bool     `flag:"short=P,long=part-time,description='Mark as part-time employee'"`
 	Apprenticeship bool     `flag:"short=A,description='Indicates the employee is joining as an apprentice'"`
-	Salary         int      `flag:"description='Starting salary in USD'"`
-	NotifyTeams    []string `flag:"long=notify,short=N,description='Slack team channels to notify (e.g., #eng, #ops)'"`
+	Salary         int      `flag:"default-value=9999,description='Starting salary in USD'"`
+	TeamsChannel   []string `flag:"long=notify,short=N,description='Slack team channels to notify (e.g., #eng, #ops)'"`
 	EmployeeID     string   `flag:"positional,mandatory,description='Unique employee ID'"`
-	Department     string   `flag:"positional,description='Department name (e.g., Engineering, HR)'"`
+	Department     string   `flag:"positional,default-value=Design,description='Department name (e.g., Engineering, HR)'"`
 }
 
 func main() {
@@ -74,7 +74,7 @@ func main() {
 	fmt.Printf("Salary:         $%d\n", args.Salary)
 	fmt.Printf("Department:     %s\n", args.Department)
 	fmt.Printf("Employee ID:    %s\n", args.EmployeeID)
-	fmt.Printf("Notify:         %v\n", args.NotifyTeams)
+	fmt.Printf("Notify:         %v\n", args.TeamsChannel)
 }
 ```
 
@@ -92,25 +92,25 @@ Notify:      [#design #it]
 ```
 
 ```shell
-$ go run ./example --help
 Usage:
-  example --name [--email] [--title] [--full-time] [--part-time] [--salary] [--notify ...] [--help] <EmployeeID> [Department]
+  example [OPTIONS] --name <Name> <EmployeeID> [Department]
 
 Required options:
-  -n, --name       Full name of the new employee
+  -n, --name <Name>            Full name of the new employee
 
 Options:
-  -e, --email      Company email address to assign
-  -t, --title      Job title (e.g., Backend Engineer)
-  -F, --full-time  Mark as full-time employee
-  -P, --part-time  Mark as part-time employee
-  -s, --salary     Starting salary in USD
-  -N, --notify     Slack team channels to notify (e.g., #eng, #ops) (can be specified multiple times)
-  -h, --help       Show this help message and exit
+  -e, --email <Email>          Company email address to assign
+  -t, --title <Position>       Job title (e.g., Backend Engineer)
+  -F, --full-time              Mark as full-time employee
+  -P, --part-time              Mark as part-time employee
+  -A, --apprenticeship         Indicates the employee is joining as an apprentice
+  -s, --salary <Salary>        Starting salary in USD
+  -N, --notify <TeamsChannel>  Slack team channels to notify (e.g., #eng, #ops) (can be specified multiple times)
+  -h, --help                   Show this help message and exit
 
 Positional arguments:
-  EmployeeID       Unique employee ID (required)
-  Department       Department name (e.g., Engineering, HR)
+  EmployeeID                   Unique employee ID (required)
+  Department                   Department name (e.g., Engineering, HR)
 ```
 
 ## 🧠 Supported Tag Options
@@ -125,4 +125,5 @@ The flag struct tag supports the following options:
 |description=... |string |Help/usage description                        |
 |conflicts-with=x|string |Mutually exclusive with another field         |
 |positional      |keyword|Argument must be passed in a specific position|
+|default-value   |string |Default value                                 |
 
