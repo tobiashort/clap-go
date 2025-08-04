@@ -1,6 +1,7 @@
 package clap
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -471,8 +472,10 @@ func parseTagValues(tag string) []string {
 }
 
 func printHelp(args []arg, w io.Writer) {
+	buf := bytes.Buffer{}
+
 	if description != "" {
-		fmt.Fprintf(w, "%s\n\n", description)
+		fmt.Fprintf(&buf, "%s\n\n", description)
 	}
 
 	var usageParts []string
@@ -511,7 +514,7 @@ func printHelp(args []arg, w io.Writer) {
 		}
 	}
 
-	fmt.Fprintf(w, "Usage:\n  %s\n\n", strings.Join(usageParts, " "))
+	fmt.Fprintf(&buf, "Usage:\n  %s\n\n", strings.Join(usageParts, " "))
 
 	// --- Format help sections ---
 
@@ -543,7 +546,7 @@ func printHelp(args []arg, w io.Writer) {
 	for _, f := range args {
 		if !f.positional && f.mandatory {
 			if !hasRequired {
-				fmt.Fprintln(w, "Required options:")
+				fmt.Fprintln(&buf, "Required options:")
 				hasRequired = true
 			}
 			desc := f.description
@@ -553,11 +556,11 @@ func printHelp(args []arg, w io.Writer) {
 			if f.defaultValue != "" {
 				desc += fmt.Sprintf(" (default: %s)", f.defaultValue)
 			}
-			fmt.Fprintf(w, "  %-*s  %s\n", maxLabelLen, labels[f.name], desc)
+			fmt.Fprintf(&buf, "  %-*s  %s\n", maxLabelLen, labels[f.name], desc)
 		}
 	}
 	if hasRequired {
-		fmt.Fprintln(w)
+		fmt.Fprintln(&buf)
 	}
 
 	// Optional options
@@ -565,7 +568,7 @@ func printHelp(args []arg, w io.Writer) {
 	for _, f := range args {
 		if !f.positional && !f.mandatory {
 			if !hasOptional {
-				fmt.Fprintln(w, "Options:")
+				fmt.Fprintln(&buf, "Options:")
 				hasOptional = true
 			}
 			desc := f.description
@@ -575,11 +578,11 @@ func printHelp(args []arg, w io.Writer) {
 			if f.defaultValue != "" {
 				desc += fmt.Sprintf(" (default: %s)", f.defaultValue)
 			}
-			fmt.Fprintf(w, "  %-*s  %s\n", maxLabelLen, labels[f.name], desc)
+			fmt.Fprintf(&buf, "  %-*s  %s\n", maxLabelLen, labels[f.name], desc)
 		}
 	}
 	if hasOptional {
-		fmt.Fprintln(w)
+		fmt.Fprintln(&buf)
 	}
 
 	// Positional arguments
@@ -587,7 +590,7 @@ func printHelp(args []arg, w io.Writer) {
 	for _, f := range args {
 		if f.positional {
 			if !hasPositional {
-				fmt.Fprintln(w, "Positional arguments:")
+				fmt.Fprintln(&buf, "Positional arguments:")
 				hasPositional = true
 			}
 			desc := f.description
@@ -597,9 +600,11 @@ func printHelp(args []arg, w io.Writer) {
 			if f.defaultValue != "" {
 				desc += fmt.Sprintf(" (default: %s)", f.defaultValue)
 			}
-			fmt.Fprintf(w, "  %-*s  %s\n", maxLabelLen, f.name, f.description)
+			fmt.Fprintf(&buf, "  %-*s  %s\n", maxLabelLen, f.name, f.description)
 		}
 	}
+
+	fmt.Fprint(w, strings.TrimSpace(buf.String()))
 }
 
 func developerErr(msg string) {
