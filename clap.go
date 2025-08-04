@@ -141,8 +141,6 @@ func parse(strct any) {
 
 	programArgs = append(programArgs, implicitHelpArg)
 
-	checkForNameCollisions(programArgs)
-
 	programPositionalArgs := make([]arg, 0)
 	for _, arg := range programArgs {
 		if arg.positional {
@@ -150,10 +148,15 @@ func parse(strct any) {
 		}
 	}
 
+	checkForNameCollisions(programArgs)
+	checkForMandatoryArgsWithDefaultValue(programArgs)
+	checkForSlicesWithDefaultValue(programArgs)
+	checkForInvalidPositionalArguments(programPositionalArgs)
+
 	givenNonPositionalArgs := make([]arg, 0)
 	givenPositionalArgs := make([]arg, 0)
-	positionalArgIndex := 0
 
+	positionalArgIndex := 0
 	doubleDashSeen := false
 	for i := 1; i < len(os.Args); i++ {
 		arg := os.Args[i]
@@ -191,13 +194,15 @@ func parse(strct any) {
 				i = parseNonPositionalAtIndex(arg, strct, i)
 			}
 		} else {
-			if positionalArgIndex >= len(programPositionalArgs) {
+			if positionalArgIndex >= len(programPositionalArgs) && programPositionalArgs[len(programPositionalArgs)-1].kind != reflect.Slice {
 				userErr("too many arguments")
 			} else {
 				positionalArg := programPositionalArgs[positionalArgIndex]
 				givenPositionalArgs = append(givenPositionalArgs, positionalArg)
 				parsePositionalAtIndex(positionalArg, strct, i)
-				positionalArgIndex++
+				if positionalArgIndex+1 < len(programPositionalArgs) {
+					positionalArgIndex++
+				}
 			}
 		}
 	}
@@ -249,24 +254,22 @@ func parseNonPositional(arg arg, strct any, value string) {
 	} else if arg.kind == reflect.String {
 		setString(strct, arg.name, value)
 	} else if arg.kind == reflect.Int {
-		val := parseInt(value)
-		setInt(strct, arg.name, val)
+		setInt(strct, arg.name, parseInt(value))
 	} else if arg.kind == reflect.Float64 {
-		val := parseFloat(value)
-		setFloat(strct, arg.name, val)
+		setFloat(strct, arg.name, parseFloat(value))
 	} else if arg.kind == reflect.Slice {
 		innerKind := arg.type_.Elem().Kind()
-		var val any
+		var parsed any
 		if innerKind == reflect.String {
-			val = value
+			parsed = value
 		} else if innerKind == reflect.Int {
-			val = parseInt(value)
+			parsed = parseInt(value)
 		} else if innerKind == reflect.Float64 {
-			val = parseFloat(value)
+			parsed = parseFloat(value)
 		} else {
 			developerErr("not implemented argument kind []" + innerKind.String())
 		}
-		addToSlice(strct, arg.name, val)
+		addToSlice(strct, arg.name, parsed)
 	} else {
 		developerErr(fmt.Sprintf("not implemented argument kind: %v", arg.kind))
 		panic("unreachable")
@@ -282,17 +285,22 @@ func parsePositional(arg arg, strct any, value string) {
 	if arg.kind == reflect.String {
 		setString(strct, arg.name, value)
 	} else if arg.kind == reflect.Int {
-		val, err := strconv.Atoi(value)
-		if err != nil {
-			developerErr("value is not an int: " + value)
-		}
-		setInt(strct, arg.name, val)
+		setInt(strct, arg.name, parseInt(value))
 	} else if arg.kind == reflect.Float64 {
-		val, err := strconv.ParseFloat(value, 64)
-		if err != nil {
-			developerErr("value is not a float: " + value)
+		setFloat(strct, arg.name, parseFloat(value))
+	} else if arg.kind == reflect.Slice {
+		innerKind := arg.type_.Elem().Kind()
+		var parsed any
+		if innerKind == reflect.String {
+			parsed = value
+		} else if innerKind == reflect.Int {
+			parsed = parseInt(value)
+		} else if innerKind == reflect.Float64 {
+			parsed = parseFloat(value)
+		} else {
+			developerErr("not implemented argument kind []" + innerKind.String())
 		}
-		setFloat(strct, arg.name, val)
+		addToSlice(strct, arg.name, parsed)
 	} else {
 		developerErr(fmt.Sprintf("not implemented argument kind: %v", arg.kind))
 	}
@@ -380,6 +388,45 @@ func checkForNameCollisions(args []arg) {
 			seenShort[arg.short] = arg
 		} else {
 			developerErr(fmt.Sprintf("argument name collision: %s (-%s) with %s (-%s)", arg.name, arg.short, existing.name, existing.short))
+		}
+	}
+}
+
+func checkForSlicesWithDefaultValue(programArgs []arg) {
+	for _, arg := range programArgs {
+		if arg.kind == reflect.Slice && arg.defaultValue != "" {
+			developerErr("slice arguments cannot have default values: " + arg.name)
+		}
+	}
+}
+
+func checkForMandatoryArgsWithDefaultValue(programArgs []arg) {
+	for _, arg := range programArgs {
+		if arg.mandatory && arg.defaultValue != "" {
+			developerErr("mandatory arguments cannot have default values: " + arg.name)
+		}
+	}
+}
+
+func checkForInvalidPositionalArguments(programPositionalArgs []arg) {
+	sliceSeen := false
+	optionalSeen := false
+
+	for _, arg := range programPositionalArgs {
+		if arg.kind != reflect.Slice && sliceSeen {
+			developerErr("positional arguments of slices can only be located at the end: " + arg.name)
+		}
+		if arg.kind == reflect.Slice && optionalSeen {
+			developerErr("when slice as a positional argument is used, all preceding positional arguments must be mandatory: " + arg.name)
+		}
+		if arg.mandatory && optionalSeen {
+			developerErr("you cannot have mandatory positional arguments after optional ones: " + arg.name)
+		}
+		if arg.kind == reflect.Slice {
+			sliceSeen = true
+		}
+		if !arg.mandatory {
+			optionalSeen = true
 		}
 	}
 }
@@ -500,7 +547,7 @@ func printHelp(args []arg, w io.Writer) {
 
 		argSyntax := fmt.Sprintf("--%s <%s>", f.long, f.name)
 		if f.kind == reflect.Slice {
-			argSyntax = argSyntax + " ..."
+			argSyntax = argSyntax + "..."
 		}
 
 		if f.mandatory {
@@ -511,11 +558,16 @@ func printHelp(args []arg, w io.Writer) {
 	// Add positional arguments
 	for _, f := range args {
 		if f.positional {
+			usagePart := ""
 			if f.mandatory {
-				usageParts = append(usageParts, "<"+f.name+">")
+				usagePart = "<" + f.name + ">"
 			} else {
-				usageParts = append(usageParts, "["+f.name+"]")
+				usagePart = "[" + f.name + "]"
 			}
+			if f.kind == reflect.Slice {
+				usagePart += "..."
+			}
+			usageParts = append(usageParts, usagePart)
 		}
 	}
 
@@ -576,14 +628,20 @@ func printHelp(args []arg, w io.Writer) {
 				fmt.Fprintln(&buf, "Options:")
 				hasOptional = true
 			}
-			desc := f.description
+			additionalDesciptions := make([]string, 0)
 			if f.kind == reflect.Slice {
-				desc += " (can be specified multiple times)"
+				additionalDesciptions = append(additionalDesciptions, "can be specified multiple times")
 			}
 			if f.defaultValue != "" {
-				desc += fmt.Sprintf(" (default: %s)", f.defaultValue)
+				additionalDesciptions = append(additionalDesciptions, "default: "+f.defaultValue)
 			}
-			fmt.Fprintf(&buf, "  %-*s  %s\n", maxLabelLen, labels[f.name], desc)
+			var description string
+			if len(additionalDesciptions) > 0 {
+				description = fmt.Sprintf("%s (%s)", f.description, strings.Join(additionalDesciptions, ", "))
+			} else {
+				description = f.description
+			}
+			fmt.Fprintf(&buf, "  %-*s  %s\n", maxLabelLen, labels[f.name], description)
 		}
 	}
 	if hasOptional {
@@ -598,14 +656,23 @@ func printHelp(args []arg, w io.Writer) {
 				fmt.Fprintln(&buf, "Positional arguments:")
 				hasPositional = true
 			}
-			desc := f.description
+			additionalDesciptions := make([]string, 0)
 			if f.mandatory {
-				desc += " (required)"
+				additionalDesciptions = append(additionalDesciptions, "required")
+			}
+			if f.kind == reflect.Slice {
+				additionalDesciptions = append(additionalDesciptions, "can be specified multiple times")
 			}
 			if f.defaultValue != "" {
-				desc += fmt.Sprintf(" (default: %s)", f.defaultValue)
+				additionalDesciptions = append(additionalDesciptions, "default: "+f.defaultValue)
 			}
-			fmt.Fprintf(&buf, "  %-*s  %s\n", maxLabelLen, f.name, f.description)
+			var description string
+			if len(additionalDesciptions) > 0 {
+				description = fmt.Sprintf("%s (%s)", f.description, strings.Join(additionalDesciptions, ", "))
+			} else {
+				description = f.description
+			}
+			fmt.Fprintf(&buf, "  %-*s  %s\n", maxLabelLen, f.name, description)
 		}
 	}
 

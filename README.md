@@ -47,7 +47,7 @@ type Args struct {
 	Salary         int      `clap:"default-value=9999,description='Starting salary in USD'"`
 	TeamsChannel   []string `clap:"long=notify,short=N,description='Slack team channels to notify (e.g., #eng, #ops)'"`
 	EmployeeID     string   `clap:"positional,mandatory,description='Unique employee ID'"`
-	Department     string   `clap:"positional,default-value=Design,description='Department name (e.g., Engineering, HR)'"`
+	Department     []string `clap:"positional,mandatory,description='Department name (e.g., Engineering, HR)'"`
 }
 
 func main() {
@@ -77,7 +77,7 @@ func main() {
 ```
 
 ```shell
-$ go run ./example --name "John Doe" --email john@company.com -t "Designer" -F --salary 85000 -N "#design" -N "#it" D12345 Design
+$ go run ./example --name "John Doe" --email john@company.com -t "Designer" -F --salary 85000 -N "#design" -N "#it" D12345 Marketing Engineering
 === New Employee Onboarding ===
 Name:           John Doe
 Email:          john@company.com
@@ -85,7 +85,7 @@ Position:       Designer
 Type:           Full-Time
 Apprenticeship: false
 Salary:         $85000
-Department:     Design
+Department:     [Marketing Engineering]
 Employee ID:    D12345
 Notify:         [#design #it]
 ```
@@ -95,7 +95,7 @@ $ go run ./example -h
 This example shall demonstrate how this command line argument parsers works.
 
 Usage:
-  example [OPTIONS] --name <Name> <EmployeeID> [Department]
+  example [OPTIONS] --name <Name> <EmployeeID> <Department> ...
 
 Required options:
   -n, --name <Name>            Full name of the new employee
@@ -106,13 +106,13 @@ Options:
   -F, --full-time              Mark as full-time employee
   -P, --part-time              Mark as part-time employee
   -A, --apprenticeship         Indicates the employee is joining as an apprentice
-  -s, --salary <Salary>        Starting salary in USD (default 9999)
+  -s, --salary <Salary>        Starting salary in USD (default: 9999)
   -N, --notify <TeamsChannel>  Slack team channels to notify (e.g., #eng, #ops) (can be specified multiple times)
   -h, --help                   Show this help message and exit
 
 Positional arguments:
-  EmployeeID                   Unique employee ID
-  Department                   Department name (e.g., Engineering, HR)
+  EmployeeID                   Unique employee ID (required)
+  Department                   Department name (e.g., Engineering, HR) (required, can be specified multiple times)⏎
 ```
 
 ## 🧠 Supported Tag Options

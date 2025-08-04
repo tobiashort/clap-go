@@ -2,6 +2,7 @@ package clap
 
 import (
 	"os"
+	"reflect"
 	"testing"
 )
 
@@ -169,6 +170,26 @@ func TestPositionalArgsDoubleDash(t *testing.T) {
 		}
 		if args.Department != "--Engineering--" {
 			t.Fatalf("expected Department 'Engineering', got '%s'", args.Department)
+		}
+	})
+}
+
+func TestPositionalSliceArgs(t *testing.T) {
+	withArgs([]string{"prog", "EMP123", "Marketing", "Engineering"}, func() {
+		type Args struct {
+			EmployeeID  string   `clap:"positional,mandatory"`
+			Departments []string `clap:"positional"`
+		}
+
+		args := Args{}
+		parse(&args)
+
+		if args.EmployeeID != "EMP123" {
+			t.Fatalf("expected EmployeeID 'EMP123', got '%s'", args.EmployeeID)
+		}
+
+		if !reflect.DeepEqual(args.Departments, []string{"Marketing", "Engineering"}) {
+			t.Fatalf("expected Departments [Marketing, Engineering], got '%s'", args.Departments)
 		}
 	})
 }

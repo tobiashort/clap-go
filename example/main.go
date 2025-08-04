@@ -16,7 +16,7 @@ type Args struct {
 	Salary         int      `clap:"default-value=9999,description='Starting salary in USD'"`
 	TeamsChannel   []string `clap:"long=notify,short=N,description='Slack team channels to notify (e.g., #eng, #ops)'"`
 	EmployeeID     string   `clap:"positional,mandatory,description='Unique employee ID'"`
-	Department     string   `clap:"positional,default-value=Design,description='Department name (e.g., Engineering, HR)'"`
+	Department     []string `clap:"positional,mandatory,description='Department name (e.g., Engineering, HR)'"`
 }
 
 func main() {
