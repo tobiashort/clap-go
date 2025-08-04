@@ -676,7 +676,7 @@ func printHelp(args []arg, w io.Writer) {
 		}
 	}
 
-	fmt.Fprint(w, strings.TrimSpace(buf.String()))
+	fmt.Fprint(w, strings.TrimSpace(buf.String())+"\n")
 }
 
 func developerErr(msg string) {
