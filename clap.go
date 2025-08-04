@@ -154,9 +154,14 @@ func parse(strct any) {
 	givenPositionalArgs := make([]arg, 0)
 	positionalArgIndex := 0
 
+	doubleDashSeen := false
 	for i := 1; i < len(os.Args); i++ {
 		arg := os.Args[i]
-		if strings.HasPrefix(arg, "--") {
+		if arg == "--" {
+			doubleDashSeen = true
+			continue
+		}
+		if !doubleDashSeen && strings.HasPrefix(arg, "--") {
 			long := arg[2:]
 			if long == "help" {
 				printHelp(programArgs, os.Stdout)
@@ -169,7 +174,7 @@ func parse(strct any) {
 				givenNonPositionalArgs = append(givenNonPositionalArgs, arg)
 			}
 			i = parseNonPositionalAtIndex(arg, strct, i)
-		} else if strings.HasPrefix(arg, "-") {
+		} else if !doubleDashSeen && strings.HasPrefix(arg, "-") {
 			shortGrouped := arg[1:]
 			for _, rune := range shortGrouped {
 				short := string(rune)

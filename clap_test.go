@@ -154,6 +154,25 @@ func TestPositionalArgs(t *testing.T) {
 	})
 }
 
+func TestPositionalArgsDoubleDash(t *testing.T) {
+	withArgs([]string{"prog", "--", "-EMP123-", "--Engineering--"}, func() {
+		type Args struct {
+			EmployeeID string `clap:"positional,mandatory"`
+			Department string `clap:"positional"`
+		}
+
+		args := Args{}
+		parse(&args)
+
+		if args.EmployeeID != "-EMP123-" {
+			t.Fatalf("expected EmployeeID 'EMP123', got '%s'", args.EmployeeID)
+		}
+		if args.Department != "--Engineering--" {
+			t.Fatalf("expected Department 'Engineering', got '%s'", args.Department)
+		}
+	})
+}
+
 func TestPositionalDefault(t *testing.T) {
 	withArgs([]string{"prog", "EMP999"}, func() {
 		type Args struct {
