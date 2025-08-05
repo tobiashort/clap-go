@@ -7,8 +7,10 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 var (
@@ -82,7 +84,7 @@ func parse(strct any) {
 		field := strctType.Field(i)
 
 		var (
-			long          = strings.ToLower(field.Name)
+			long          = toKebabCase(field.Name)
 			short         = string(strings.ToLower(field.Name)[0])
 			conflictsWith = make([]string, 0)
 			mandatory     = false
@@ -685,4 +687,24 @@ func developerErr(msg string) {
 
 func userErr(msg string) {
 	panic(userError{msg})
+}
+
+func toKebabCase(s string) string {
+	allUpper := true
+	for _, r := range s {
+		if unicode.IsLower(r) {
+			allUpper = false
+			break
+		}
+	}
+	if allUpper {
+		return strings.ToLower(s)
+	}
+
+	re := regexp.MustCompile(`([A-Z][a-z]*)`)
+	words := re.FindAllString(s, -1)
+	for i := range words {
+		words[i] = strings.ToLower(words[i])
+	}
+	return strings.Join(words, "-")
 }
