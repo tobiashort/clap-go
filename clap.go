@@ -436,7 +436,7 @@ func checkForConflicts(givenNonPositionalArgs []arg) {
 		for _, inConflict := range outerArg.conflictsWith {
 			for _, innerArg := range givenNonPositionalArgs {
 				if innerArg.name == inConflict {
-					developerErr(fmt.Sprintf("conflicting arguments: -%s|--%s, -%s|--%s", outerArg.short, outerArg.long, innerArg.short, innerArg.long))
+					userErr(fmt.Sprintf("conflicting arguments: -%s|--%s, -%s|--%s", outerArg.short, outerArg.long, innerArg.short, innerArg.long))
 				}
 			}
 		}
