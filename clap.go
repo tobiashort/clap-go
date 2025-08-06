@@ -203,7 +203,9 @@ func parse(strct any) {
 				i = parseNonPositionalAtIndex(arg, strct, i)
 			}
 		} else {
-			if positionalArgIndex >= len(programPositionalArgs) && programPositionalArgs[len(programPositionalArgs)-1].kind != reflect.Slice {
+			if len(programPositionalArgs) == 0 {
+				userErr("too many arguments")
+			} else if positionalArgIndex >= len(programPositionalArgs) && programPositionalArgs[len(programPositionalArgs)-1].kind != reflect.Slice {
 				userErr("too many arguments")
 			} else {
 				positionalArg := programPositionalArgs[positionalArgIndex]
