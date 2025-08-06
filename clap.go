@@ -16,6 +16,7 @@ import (
 var (
 	prog        string = filepath.Base(os.Args[0])
 	description string = ""
+	example     string = ""
 )
 
 type arg struct {
@@ -53,6 +54,10 @@ func Prog(s string) {
 
 func Description(s string) {
 	description = s
+}
+
+func Example(s string) {
+	example = s
 }
 
 func Parse(strct any) {
@@ -676,6 +681,14 @@ func printHelp(args []arg, w io.Writer) {
 			}
 			fmt.Fprintf(&buf, "  %-*s  %s\n", maxLabelLen, f.name, description)
 		}
+	}
+	if hasPositional {
+		fmt.Fprintln(&buf)
+	}
+
+	if example != "" {
+		fmt.Fprint(&buf, "Example:\n\n")
+		fmt.Fprintln(&buf, example)
 	}
 
 	fmt.Fprint(w, strings.TrimSpace(buf.String())+"\n")

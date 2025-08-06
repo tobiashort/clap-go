@@ -23,6 +23,7 @@ func main() {
 	args := Args{}
 	clap.Prog("example")
 	clap.Description("This example shall demonstrate how this command line argument parsers works.")
+	clap.Example(`example --name "John Doe" --email john@company.com -t "Designer" -F --salary 85000 -N "#design" -N "#it" D12345 Marketing Engineering`)
 	clap.Parse(&args)
 
 	empType := "Contractor"
