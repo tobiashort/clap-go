@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+
+	"github.com/tobiashort/cfmt-go"
 )
 
 var (
@@ -578,7 +580,7 @@ func printHelp(args []arg, w io.Writer) {
 		}
 	}
 
-	fmt.Fprintf(&buf, "Usage:\n  %s\n\n", strings.Join(usageParts, " "))
+	cfmt.Fprintf(&buf, "#B{Usage:}\n  %s\n\n", strings.Join(usageParts, " "))
 
 	// --- Format help sections ---
 
@@ -610,7 +612,7 @@ func printHelp(args []arg, w io.Writer) {
 	for _, f := range args {
 		if !f.positional && f.mandatory {
 			if !hasRequired {
-				fmt.Fprintln(&buf, "Required options:")
+				cfmt.Fprintln(&buf, "#B{Required options:}")
 				hasRequired = true
 			}
 			desc := f.description
@@ -632,7 +634,7 @@ func printHelp(args []arg, w io.Writer) {
 	for _, f := range args {
 		if !f.positional && !f.mandatory {
 			if !hasOptional {
-				fmt.Fprintln(&buf, "Options:")
+				cfmt.Fprintln(&buf, "#B{Options:}")
 				hasOptional = true
 			}
 			additionalDesciptions := make([]string, 0)
@@ -660,7 +662,7 @@ func printHelp(args []arg, w io.Writer) {
 	for _, f := range args {
 		if f.positional {
 			if !hasPositional {
-				fmt.Fprintln(&buf, "Positional arguments:")
+				cfmt.Fprintln(&buf, "#B{Positional arguments:}")
 				hasPositional = true
 			}
 			additionalDesciptions := make([]string, 0)
@@ -687,8 +689,11 @@ func printHelp(args []arg, w io.Writer) {
 	}
 
 	if example != "" {
-		fmt.Fprint(&buf, "Example:\n\n")
-		fmt.Fprintln(&buf, example)
+		cfmt.Fprint(&buf, "#B{Example:}\n")
+		lines := strings.Split(example, "\n")
+		for _, line := range lines {
+			fmt.Fprintf(&buf, "  %s\n", line)
+		}
 	}
 
 	fmt.Fprint(w, strings.TrimSpace(buf.String())+"\n")
