@@ -17,6 +17,8 @@ type Args struct {
 	TeamsChannel   []string `clap:"long=notify,short=N,description='Slack team channels to notify (e.g., #eng, #ops)'"`
 	EmployeeID     string   `clap:"positional,mandatory,description='Unique employee ID'"`
 	Department     []string `clap:"positional,mandatory,description='Department name (e.g., Engineering, HR)'"`
+	LongOmitted    string   `clap:"mandatory,long=,description='No long name for this argument'"`
+	ShortOmitted   string   `clap:"mandatory,short=,description='No short name for this argument'"`
 }
 
 func main() {

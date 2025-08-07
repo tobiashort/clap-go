@@ -241,3 +241,20 @@ func TestMissingMandatoryPanics(t *testing.T) {
 		parse(&args)
 	})
 }
+
+func TestMissingShortAndLongPanics(t *testing.T) {
+	withArgs([]string{"prog"}, func() {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Fatal("expected panic for missing short and long name")
+			}
+		}()
+
+		type Args struct {
+			Name string `clap:"mandatory,short=,long="`
+		}
+
+		args := Args{}
+		parse(&args)
+	})
+}

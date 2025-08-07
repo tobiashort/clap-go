@@ -149,17 +149,13 @@ func parse(strct any) {
 	}
 
 	programArgs = append(programArgs, implicitHelpArg)
-
-	programPositionalArgs := make([]arg, 0)
-	for _, arg := range programArgs {
-		if arg.positional {
-			programPositionalArgs = append(programPositionalArgs, arg)
-		}
-	}
+	programNonPositionalArgs := filterArgs(programArgs, func(arg arg) bool { return !arg.positional })
+	programPositionalArgs := filterArgs(programArgs, func(arg arg) bool { return arg.positional })
 
 	checkForNameCollisions(programArgs)
 	checkForMandatoryArgsWithDefaultValue(programArgs)
 	checkForSlicesWithDefaultValue(programArgs)
+	checkForEitherLongOrShortGiven(programNonPositionalArgs)
 	checkForInvalidPositionalArguments(programPositionalArgs)
 
 	givenNonPositionalArgs := make([]arg, 0)
@@ -388,17 +384,21 @@ func checkForNameCollisions(args []arg) {
 		if arg.positional {
 			continue
 		}
-		existing, exists := seenLong[arg.long]
-		if !exists {
-			seenLong[arg.long] = arg
-		} else {
-			developerErr(fmt.Sprintf("argument name collision: %s (--%s) with %s (--%s)", arg.name, arg.long, existing.name, existing.long))
+		if arg.long != "" {
+			existing, exists := seenLong[arg.long]
+			if !exists {
+				seenLong[arg.long] = arg
+			} else {
+				developerErr(fmt.Sprintf("argument name collision: %s (--%s) with %s (--%s)", arg.name, arg.long, existing.name, existing.long))
+			}
 		}
-		existing, exists = seenShort[arg.short]
-		if !exists {
-			seenShort[arg.short] = arg
-		} else {
-			developerErr(fmt.Sprintf("argument name collision: %s (-%s) with %s (-%s)", arg.name, arg.short, existing.name, existing.short))
+		if arg.short != "" {
+			existing, exists := seenShort[arg.short]
+			if !exists {
+				seenShort[arg.short] = arg
+			} else {
+				developerErr(fmt.Sprintf("argument name collision: %s (-%s) with %s (-%s)", arg.name, arg.short, existing.name, existing.short))
+			}
 		}
 	}
 }
@@ -415,6 +415,14 @@ func checkForMandatoryArgsWithDefaultValue(programArgs []arg) {
 	for _, arg := range programArgs {
 		if arg.mandatory && arg.defaultValue != "" {
 			developerErr("mandatory arguments cannot have default values: " + arg.name)
+		}
+	}
+}
+
+func checkForEitherLongOrShortGiven(programNonPositionalArgs []arg) {
+	for _, arg := range programNonPositionalArgs {
+		if arg.long == "" && arg.short == "" {
+			developerErr("Either long or short name must be specified: " + arg.name)
 		}
 	}
 }
@@ -456,12 +464,8 @@ func checkForConflicts(givenNonPositionalArgs []arg) {
 
 func checkForMissingMandatoryArgs(programArgs []arg, givenNonPositionalArgs []arg, givenPositionalArgs []arg) {
 	givenArgs := make([]arg, 0)
-	for _, nonPositionalArg := range givenNonPositionalArgs {
-		givenArgs = append(givenArgs, nonPositionalArg)
-	}
-	for _, positionalArg := range givenPositionalArgs {
-		givenArgs = append(givenArgs, positionalArg)
-	}
+	givenArgs = append(givenArgs, givenNonPositionalArgs...)
+	givenArgs = append(givenArgs, givenPositionalArgs...)
 
 outer:
 	for _, arg := range programArgs {
@@ -544,38 +548,46 @@ func printHelp(args []arg, w io.Writer) {
 	var usageParts []string
 	usageParts = append(usageParts, prog)
 
-	for _, f := range args {
-		if !f.mandatory {
+	for _, arg := range args {
+		if !arg.mandatory {
 			usageParts = append(usageParts, "[OPTIONS]")
 			break
 		}
 	}
 
-	for _, f := range args {
-		if f.positional {
+	for _, arg := range args {
+		if arg.positional {
 			continue
 		}
 
-		argSyntax := fmt.Sprintf("--%s <%s>", f.long, f.name)
-		if f.kind == reflect.Slice {
+		var argSyntax string
+		if arg.long != "" {
+			argSyntax = fmt.Sprintf("--%s <%s>", arg.long, arg.name)
+		} else if arg.short != "" {
+			argSyntax = fmt.Sprintf("-%s <%s>", arg.short, arg.name)
+		} else {
+			developerErr("Either long or short name must be specified: " + arg.name)
+		}
+
+		if arg.kind == reflect.Slice {
 			argSyntax = argSyntax + "..."
 		}
 
-		if f.mandatory {
+		if arg.mandatory {
 			usageParts = append(usageParts, argSyntax)
 		}
 	}
 
 	// Add positional arguments
-	for _, f := range args {
-		if f.positional {
+	for _, arg := range args {
+		if arg.positional {
 			usagePart := ""
-			if f.mandatory {
-				usagePart = "<" + f.name + ">"
+			if arg.mandatory {
+				usagePart = "<" + arg.name + ">"
 			} else {
-				usagePart = "[" + f.name + "]"
+				usagePart = "[" + arg.name + "]"
 			}
-			if f.kind == reflect.Slice {
+			if arg.kind == reflect.Slice {
 				usagePart += "..."
 			}
 			usageParts = append(usageParts, usagePart)
@@ -588,13 +600,17 @@ func printHelp(args []arg, w io.Writer) {
 
 	// Determine label width
 	maxLabelLen := 0
-	getLabel := func(f arg) string {
+	getLabel := func(arg arg) string {
 		var parts []string
-		parts = append(parts, "-"+f.short)
-		parts = append(parts, "--"+f.long)
+		if arg.short != "" {
+			parts = append(parts, "-"+arg.short)
+		}
+		if arg.long != "" {
+			parts = append(parts, "--"+arg.long)
+		}
 		label := strings.Join(parts, ", ")
-		if f.kind != reflect.Bool {
-			label += fmt.Sprintf(" <%s>", f.name)
+		if arg.kind != reflect.Bool {
+			label += fmt.Sprintf(" <%s>", arg.name)
 		}
 		if len(label) > maxLabelLen {
 			maxLabelLen = len(label)
@@ -603,28 +619,28 @@ func printHelp(args []arg, w io.Writer) {
 	}
 
 	labels := make(map[string]string)
-	for _, f := range args {
-		if !f.positional {
-			labels[f.name] = getLabel(f)
+	for _, arg := range args {
+		if !arg.positional {
+			labels[arg.name] = getLabel(arg)
 		}
 	}
 
 	// Required options
 	hasRequired := false
-	for _, f := range args {
-		if !f.positional && f.mandatory {
+	for _, arg := range args {
+		if !arg.positional && arg.mandatory {
 			if !hasRequired {
 				cfmt.Fprintln(&buf, "#B{Required options:}")
 				hasRequired = true
 			}
-			desc := f.description
-			if f.kind == reflect.Slice {
+			desc := arg.description
+			if arg.kind == reflect.Slice {
 				desc += " (can be specified multiple times)"
 			}
-			if f.defaultValue != "" {
-				desc += fmt.Sprintf(" (default: %s)", f.defaultValue)
+			if arg.defaultValue != "" {
+				desc += fmt.Sprintf(" (default: %s)", arg.defaultValue)
 			}
-			fmt.Fprintf(&buf, "  %-*s  %s\n", maxLabelLen, labels[f.name], desc)
+			fmt.Fprintf(&buf, "  %-*s  %s\n", maxLabelLen, labels[arg.name], desc)
 		}
 	}
 	if hasRequired {
@@ -633,26 +649,26 @@ func printHelp(args []arg, w io.Writer) {
 
 	// Optional options
 	hasOptional := false
-	for _, f := range args {
-		if !f.positional && !f.mandatory {
+	for _, arg := range args {
+		if !arg.positional && !arg.mandatory {
 			if !hasOptional {
 				cfmt.Fprintln(&buf, "#B{Options:}")
 				hasOptional = true
 			}
 			additionalDesciptions := make([]string, 0)
-			if f.kind == reflect.Slice {
+			if arg.kind == reflect.Slice {
 				additionalDesciptions = append(additionalDesciptions, "can be specified multiple times")
 			}
-			if f.defaultValue != "" {
-				additionalDesciptions = append(additionalDesciptions, "default: "+f.defaultValue)
+			if arg.defaultValue != "" {
+				additionalDesciptions = append(additionalDesciptions, "default: "+arg.defaultValue)
 			}
 			var description string
 			if len(additionalDesciptions) > 0 {
-				description = fmt.Sprintf("%s (%s)", f.description, strings.Join(additionalDesciptions, ", "))
+				description = fmt.Sprintf("%s (%s)", arg.description, strings.Join(additionalDesciptions, ", "))
 			} else {
-				description = f.description
+				description = arg.description
 			}
-			fmt.Fprintf(&buf, "  %-*s  %s\n", maxLabelLen, labels[f.name], description)
+			fmt.Fprintf(&buf, "  %-*s  %s\n", maxLabelLen, labels[arg.name], description)
 		}
 	}
 	if hasOptional {
@@ -661,29 +677,29 @@ func printHelp(args []arg, w io.Writer) {
 
 	// Positional arguments
 	hasPositional := false
-	for _, f := range args {
-		if f.positional {
+	for _, arg := range args {
+		if arg.positional {
 			if !hasPositional {
 				cfmt.Fprintln(&buf, "#B{Positional arguments:}")
 				hasPositional = true
 			}
 			additionalDesciptions := make([]string, 0)
-			if f.mandatory {
+			if arg.mandatory {
 				additionalDesciptions = append(additionalDesciptions, "required")
 			}
-			if f.kind == reflect.Slice {
+			if arg.kind == reflect.Slice {
 				additionalDesciptions = append(additionalDesciptions, "can be specified multiple times")
 			}
-			if f.defaultValue != "" {
-				additionalDesciptions = append(additionalDesciptions, "default: "+f.defaultValue)
+			if arg.defaultValue != "" {
+				additionalDesciptions = append(additionalDesciptions, "default: "+arg.defaultValue)
 			}
 			var description string
 			if len(additionalDesciptions) > 0 {
-				description = fmt.Sprintf("%s (%s)", f.description, strings.Join(additionalDesciptions, ", "))
+				description = fmt.Sprintf("%s (%s)", arg.description, strings.Join(additionalDesciptions, ", "))
 			} else {
-				description = f.description
+				description = arg.description
 			}
-			fmt.Fprintf(&buf, "  %-*s  %s\n", maxLabelLen, f.name, description)
+			fmt.Fprintf(&buf, "  %-*s  %s\n", maxLabelLen, arg.name, description)
 		}
 	}
 	if hasPositional {
@@ -727,4 +743,14 @@ func toKebabCase(s string) string {
 		words[i] = strings.ToLower(words[i])
 	}
 	return strings.Join(words, "-")
+}
+
+func filterArgs(args []arg, predicate func(arg arg) bool) []arg {
+	filtered := make([]arg, 0)
+	for _, arg := range args {
+		if predicate(arg) {
+			filtered = append(filtered, arg)
+		}
+	}
+	return filtered
 }
