@@ -2,23 +2,25 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/tobiashort/clap-go"
 )
 
 type Args struct {
-	Name           string   `clap:"mandatory,description='Full name of the new employee'"`
-	Email          string   `clap:"description='Company email address to assign'"`
-	Position       string   `clap:"long=title,short=t,description='Job title (e.g., Backend Engineer)'"`
-	FullTime       bool     `clap:"short=F,conflicts-with=PartTime,description='Mark as full-time employee'"`
-	PartTime       bool     `clap:"short=P,description='Mark as part-time employee'"`
-	Apprenticeship bool     `clap:"short=A,description='Indicates the employee is joining as an apprentice'"`
-	Salary         int      `clap:"default-value=9999,description='Starting salary in USD'"`
-	TeamsChannel   []string `clap:"long=notify,short=N,description='Slack team channels to notify (e.g., #eng, #ops)'"`
-	EmployeeID     string   `clap:"positional,mandatory,description='Unique employee ID'"`
-	Department     []string `clap:"positional,mandatory,description='Department name (e.g., Engineering, HR)'"`
-	LongOmitted    string   `clap:"mandatory,long=,description='No long name for this argument'"`
-	ShortOmitted   string   `clap:"mandatory,short=,description='No short name for this argument'"`
+	Name           string        `clap:"mandatory,description='Full name of the new employee'"`
+	Email          string        `clap:"description='Company email address to assign'"`
+	Position       string        `clap:"long=title,short=t,description='Job title (e.g., Backend Engineer)'"`
+	FullTime       bool          `clap:"short=F,conflicts-with=PartTime,description='Mark as full-time employee'"`
+	PartTime       bool          `clap:"short=P,description='Mark as part-time employee'"`
+	Apprenticeship bool          `clap:"short=A,description='Indicates the employee is joining as an apprentice'"`
+	Salary         int           `clap:"default-value=9999,description='Starting salary in USD'"`
+	TeamsChannel   []string      `clap:"long=notify,short=N,description='Slack team channels to notify (e.g., #eng, #ops)'"`
+	EmployeeID     string        `clap:"positional,mandatory,description='Unique employee ID'"`
+	Department     []string      `clap:"positional,mandatory,description='Department name (e.g., Engineering, HR)'"`
+	LongOmitted    string        `clap:"mandatory,long=,description='No long name for this argument'"`
+	ShortOmitted   string        `clap:"mandatory,short=,description='No short name for this argument'"`
+	Duration       time.Duration `clap:"short=D,description='Duration like 1h12m0s'"`
 }
 
 func main() {
@@ -45,4 +47,5 @@ func main() {
 	fmt.Printf("Department:     %s\n", args.Department)
 	fmt.Printf("Employee ID:    %s\n", args.EmployeeID)
 	fmt.Printf("Notify:         %v\n", args.TeamsChannel)
+	fmt.Printf("Duration:       %v\n", args.Duration)
 }

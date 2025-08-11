@@ -1,9 +1,11 @@
 package clap
 
 import (
+	"fmt"
 	"os"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func withArgs(args []string, fn func()) {
@@ -256,5 +258,20 @@ func TestMissingShortAndLongPanics(t *testing.T) {
 
 		args := Args{}
 		parse(&args)
+	})
+}
+
+func TestDurationArg(t *testing.T) {
+	withArgs([]string{"prog", "--duration", "01h12m02s"}, func() {
+		type Args struct {
+			Duration time.Duration
+		}
+
+		args := Args{}
+		parse(&args)
+
+		if fmt.Sprintf("%v", args.Duration) != "1h12m2s" {
+			t.FailNow()
+		}
 	})
 }

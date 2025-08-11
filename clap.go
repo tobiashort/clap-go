@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/tobiashort/cfmt-go"
@@ -277,6 +278,8 @@ func parseNonPositional(arg arg, strct any, value string) {
 			developerErr("not implemented argument kind []" + innerKind.String())
 		}
 		addToSlice(strct, arg.name, parsed)
+	} else if arg.type_ == reflect.TypeOf(time.Duration(0)) {
+		setDuration(strct, arg.name, parseDuration(value))
 	} else {
 		developerErr(fmt.Sprintf("not implemented argument kind: %v", arg.kind))
 		panic("unreachable")
@@ -308,6 +311,8 @@ func parsePositional(arg arg, strct any, value string) {
 			developerErr("not implemented argument kind []" + innerKind.String())
 		}
 		addToSlice(strct, arg.name, parsed)
+	} else if arg.type_ == reflect.TypeOf(time.Duration(0)) {
+		setDuration(strct, arg.name, parseDuration(value))
 	} else {
 		developerErr(fmt.Sprintf("not implemented argument kind: %v", arg.kind))
 	}
@@ -325,6 +330,14 @@ func parseFloat(arg string) float64 {
 	val, err := strconv.ParseFloat(arg, 64)
 	if err != nil {
 		userErr("value is not a float: " + arg)
+	}
+	return val
+}
+
+func parseDuration(arg string) time.Duration {
+	val, err := time.ParseDuration(arg)
+	if err != nil {
+		userErr("value is not a duration: " + arg)
 	}
 	return val
 }
@@ -366,6 +379,10 @@ func setBool(strct any, name string, val bool) {
 
 func setString(strct any, name string, val string) {
 	reflect.ValueOf(strct).Elem().FieldByName(name).SetString(val)
+}
+
+func setDuration(strct any, name string, val time.Duration) {
+	reflect.ValueOf(strct).Elem().FieldByName(name).Set(reflect.ValueOf(val))
 }
 
 func addToSlice(strct any, name string, val any) {
