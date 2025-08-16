@@ -35,6 +35,25 @@ type arg struct {
 	defaultValue  string
 }
 
+func (arg arg) String() string {
+	if arg.positional {
+		return arg.name
+	} else {
+		var s string
+		if arg.short != "" {
+			s = "-" + arg.short
+		}
+		if arg.long != "" {
+			if s != "" {
+				s += "|--" + arg.long
+			} else {
+				s = "--" + arg.long
+			}
+		}
+		return s
+	}
+}
+
 type userError struct {
 	msg string
 }
@@ -248,7 +267,7 @@ func parseNonPositionalAtIndex(arg arg, strct any, index int) int {
 		return index
 	} else {
 		if index+1 >= len(os.Args) {
-			userErr(fmt.Sprintf("missing value for: -%s|--%s", arg.short, arg.long))
+			userErr(fmt.Sprintf("missing value for: %s", arg))
 		}
 		value := os.Args[index+1]
 		parseNonPositional(arg, strct, value)
@@ -472,7 +491,7 @@ func checkForConflicts(givenNonPositionalArgs []arg) {
 		for _, inConflict := range outerArg.conflictsWith {
 			for _, innerArg := range givenNonPositionalArgs {
 				if innerArg.name == inConflict {
-					userErr(fmt.Sprintf("conflicting arguments: -%s|--%s, -%s|--%s", outerArg.short, outerArg.long, innerArg.short, innerArg.long))
+					userErr(fmt.Sprintf("conflicting arguments: %s, %s", outerArg, innerArg))
 				}
 			}
 		}
@@ -495,7 +514,7 @@ outer:
 			if arg.positional {
 				userErr(fmt.Sprintf("missing mandatory positional argument: %s", arg.name))
 			} else {
-				userErr(fmt.Sprintf("missing mandatory argument: -%s|--%s", arg.short, arg.long))
+				userErr(fmt.Sprintf("missing mandatory argument: %s", arg))
 			}
 		}
 	}
@@ -509,7 +528,7 @@ func checkForMultipleUse(givenNonPositionalArgs []arg) {
 			seen[arg.name] = true
 		} else {
 			if arg.kind != reflect.Slice {
-				userErr(fmt.Sprintf("multiple use of argument -%s|--%s", arg.short, arg.long))
+				userErr(fmt.Sprintf("multiple use of argument %s", arg))
 			}
 		}
 	}
