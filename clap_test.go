@@ -275,3 +275,18 @@ func TestDurationArg(t *testing.T) {
 		}
 	})
 }
+
+func TestDefaultValueWithBackslash(t *testing.T) {
+	withArgs([]string{"prog"}, func() {
+		type Args struct {
+			Path string `clap:"default-value='C:\\\\Users\\\\user\\\\My Documents\\\\',description='The path'"`
+		}
+
+		args := Args{}
+		parse(&args)
+
+		if fmt.Sprintf("%v", args.Path) != "C:\\Users\\user\\My Documents\\" {
+			t.Fatal(args.Path)
+		}
+	})
+}
