@@ -17,10 +17,15 @@ import (
 )
 
 var (
-	prog        string = filepath.Base(os.Args[0])
-	description string = ""
-	example     string = ""
+	prog        string
+	description string
+	example     string
 )
+
+func init() {
+	prog = filepath.Base(os.Args[0])
+	prog = strings.TrimSuffix(prog, filepath.Ext(prog))
+}
 
 type arg struct {
 	name          string
