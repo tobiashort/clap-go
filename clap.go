@@ -36,6 +36,7 @@ type arg struct {
 	conflictsWith []string
 	mandatory     bool
 	positional    bool
+	command       bool
 	description   string
 	defaultValue  string
 }
@@ -100,10 +101,10 @@ func Parse(strct any) {
 			}
 		}
 	}()
-	parse(strct)
+	parse(os.Args, strct)
 }
 
-func parse(strct any) {
+func parse(osArgs []string, strct any) {
 	if !isStructPointer(strct) {
 		developerErr("expected struct pointer")
 	}
@@ -121,6 +122,7 @@ func parse(strct any) {
 			conflictsWith = make([]string, 0)
 			mandatory     = false
 			positional    = false
+			command       = false
 			description   = ""
 			defaultValue  = ""
 		)
@@ -144,6 +146,9 @@ func parse(strct any) {
 					mandatory = true
 				} else if tagValue == "positional" {
 					positional = true
+				} else if tagValue == "command" {
+					command = true
+					positional = true
 				} else {
 					developerErr("unknown tag value: " + tagValue)
 				}
@@ -159,6 +164,7 @@ func parse(strct any) {
 			conflictsWith: conflictsWith,
 			mandatory:     mandatory,
 			positional:    positional,
+			command:       command,
 			description:   description,
 			defaultValue:  defaultValue,
 		})
@@ -188,8 +194,10 @@ func parse(strct any) {
 
 	positionalArgIndex := 0
 	doubleDashSeen := false
-	for i := 1; i < len(os.Args); i++ {
-		arg := os.Args[i]
+
+osArgsLoop:
+	for i := 1; i < len(osArgs); i++ {
+		arg := osArgs[i]
 		if arg == "--" {
 			doubleDashSeen = true
 			continue
@@ -206,7 +214,7 @@ func parse(strct any) {
 			} else {
 				givenNonPositionalArgs = append(givenNonPositionalArgs, arg)
 			}
-			i = parseNonPositionalAtIndex(arg, strct, i)
+			i = parseNonPositionalAtIndex(osArgs, arg, strct, i)
 		} else if !doubleDashSeen && strings.HasPrefix(arg, "-") {
 			shortGrouped := arg[1:]
 			for _, rune := range shortGrouped {
@@ -221,7 +229,7 @@ func parse(strct any) {
 				} else {
 					givenNonPositionalArgs = append(givenNonPositionalArgs, arg)
 				}
-				i = parseNonPositionalAtIndex(arg, strct, i)
+				i = parseNonPositionalAtIndex(osArgs, arg, strct, i)
 			}
 		} else {
 			if len(programPositionalArgs) == 0 {
@@ -231,8 +239,22 @@ func parse(strct any) {
 			} else {
 				positionalArg := programPositionalArgs[positionalArgIndex]
 				givenPositionalArgs = append(givenPositionalArgs, positionalArg)
-				parsePositionalAtIndex(positionalArg, strct, i)
-				if positionalArgIndex+1 < len(programPositionalArgs) {
+				parsePositionalAtIndex(osArgs, positionalArg, strct, i)
+				if positionalArg.command {
+					for fi := range strctType.NumField() {
+						field := strctType.Field(fi)
+						if toKebabCase(field.Name) == osArgs[i] {
+							prog = prog + " " + osArgs[i]
+							description = ""
+							example = ""
+							inst := reflect.New(field.Type)
+							parse(osArgs[i:], inst.Interface())
+							setStruct(strct, field.Name, inst.Elem().Interface())
+							break osArgsLoop
+						}
+					}
+					userErr("unknown command: " + osArgs[i])
+				} else if positionalArgIndex+1 < len(programPositionalArgs) {
 					positionalArgIndex++
 				}
 			}
@@ -243,19 +265,19 @@ func parse(strct any) {
 	checkForMissingMandatoryArgs(programArgs, givenNonPositionalArgs, givenPositionalArgs)
 	checkForMultipleUse(givenNonPositionalArgs)
 
-outer:
+programArgsLoop:
 	for _, arg := range programArgs {
 		if arg.defaultValue == "" {
 			continue
 		}
 		for _, givenArg := range givenNonPositionalArgs {
 			if arg.name == givenArg.name {
-				continue outer
+				continue programArgsLoop
 			}
 		}
 		for _, givenArg := range givenPositionalArgs {
 			if arg.name == givenArg.name {
-				continue outer
+				continue programArgsLoop
 			}
 		}
 		if arg.positional {
@@ -266,15 +288,15 @@ outer:
 	}
 }
 
-func parseNonPositionalAtIndex(arg arg, strct any, index int) int {
+func parseNonPositionalAtIndex(osArgs []string, arg arg, strct any, index int) int {
 	if arg.kind == reflect.Bool {
 		parseNonPositional(arg, strct, "")
 		return index
 	} else {
-		if index+1 >= len(os.Args) {
+		if index+1 >= len(osArgs) {
 			userErr(fmt.Sprintf("missing value for: %s", arg))
 		}
-		value := os.Args[index+1]
+		value := osArgs[index+1]
 		parseNonPositional(arg, strct, value)
 		return index + 1
 	}
@@ -310,8 +332,8 @@ func parseNonPositional(arg arg, strct any, value string) {
 	}
 }
 
-func parsePositionalAtIndex(arg arg, strct any, index int) {
-	value := os.Args[index]
+func parsePositionalAtIndex(osArgs []string, arg arg, strct any, index int) {
+	value := osArgs[index]
 	parsePositional(arg, strct, value)
 }
 
@@ -409,6 +431,10 @@ func setDuration(strct any, name string, val time.Duration) {
 	reflect.ValueOf(strct).Elem().FieldByName(name).Set(reflect.ValueOf(val))
 }
 
+func setStruct(strct any, name string, val any) {
+	reflect.ValueOf(strct).Elem().FieldByName(name).Set(reflect.ValueOf(val))
+}
+
 func addToSlice(strct any, name string, val any) {
 	field := reflect.ValueOf(strct).Elem().FieldByName(name)
 	if field.IsNil() {
@@ -471,6 +497,7 @@ func checkForEitherLongOrShortGiven(programNonPositionalArgs []arg) {
 func checkForInvalidPositionalArguments(programPositionalArgs []arg) {
 	sliceSeen := false
 	optionalSeen := false
+	commandSeen := false
 
 	for _, arg := range programPositionalArgs {
 		if arg.kind != reflect.Slice && sliceSeen {
@@ -482,11 +509,17 @@ func checkForInvalidPositionalArguments(programPositionalArgs []arg) {
 		if arg.mandatory && optionalSeen {
 			developerErr("you cannot have mandatory positional arguments after optional ones: " + arg.name)
 		}
+		if arg.command && commandSeen {
+			developerErr("you cannot have multiple commands on the same level: " + arg.name)
+		}
 		if arg.kind == reflect.Slice {
 			sliceSeen = true
 		}
 		if !arg.mandatory {
 			optionalSeen = true
+		}
+		if arg.command {
+			commandSeen = true
 		}
 	}
 }
@@ -669,7 +702,7 @@ func printHelp(args []arg, w io.Writer) {
 	// Required options
 	hasRequired := false
 	for _, arg := range args {
-		if !arg.positional && arg.mandatory {
+		if !arg.positional && arg.mandatory && arg.kind != reflect.Struct {
 			if !hasRequired {
 				cfmt.Fprintln(&buf, "#B{Required options:}")
 				hasRequired = true
@@ -691,7 +724,7 @@ func printHelp(args []arg, w io.Writer) {
 	// Optional options
 	hasOptional := false
 	for _, arg := range args {
-		if !arg.positional && !arg.mandatory {
+		if !arg.positional && !arg.mandatory && arg.kind != reflect.Struct {
 			if !hasOptional {
 				cfmt.Fprintln(&buf, "#B{Options:}")
 				hasOptional = true
@@ -744,6 +777,22 @@ func printHelp(args []arg, w io.Writer) {
 		}
 	}
 	if hasPositional {
+		fmt.Fprintln(&buf)
+	}
+
+	hasCommand := false
+	for _, arg := range args {
+		if arg.command {
+			if !hasCommand {
+				cfmt.Fprintln(&buf, "#B{Commands:}")
+				hasCommand = true
+			}
+		}
+		if arg.kind == reflect.Struct {
+			fmt.Fprintf(&buf, "  %-*s  %s\n", maxLabelLen, toKebabCase(arg.name), arg.description)
+		}
+	}
+	if hasCommand {
 		fmt.Fprintln(&buf)
 	}
 

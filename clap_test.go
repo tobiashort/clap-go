@@ -22,7 +22,7 @@ func TestMandatoryArg(t *testing.T) {
 		}
 
 		args := Args{}
-		parse(&args)
+		parse(os.Args, &args)
 
 		if args.Name != "Alice" {
 			t.Fatalf("expected 'Alice', got '%s'", args.Name)
@@ -37,7 +37,7 @@ func TestDefaultValue(t *testing.T) {
 		}
 
 		args := Args{}
-		parse(&args)
+		parse(os.Args, &args)
 
 		if args.Salary != 9999 {
 			t.Fatalf("expected default 9999, got %d", args.Salary)
@@ -52,7 +52,7 @@ func TestShortAndLongArgs(t *testing.T) {
 		}
 
 		args := Args{}
-		parse(&args)
+		parse(os.Args, &args)
 
 		if !args.FullTime {
 			t.Fatal("expected FullTime to be true")
@@ -65,7 +65,7 @@ func TestShortAndLongArgs(t *testing.T) {
 		}
 
 		args := Args{}
-		parse(&args)
+		parse(os.Args, &args)
 
 		if !args.FullTime {
 			t.Fatal("expected FullTime to be true via long argument")
@@ -82,7 +82,7 @@ func TestShortGrouped(t *testing.T) {
 		}
 
 		args := Args{}
-		parse(&args)
+		parse(os.Args, &args)
 
 		if !args.A || !args.B || !args.C {
 			t.Fatal("expected all to be true")
@@ -104,7 +104,7 @@ func TestConflictingArgs(t *testing.T) {
 		}
 
 		args := Args{}
-		parse(&args)
+		parse(os.Args, &args)
 	})
 }
 
@@ -115,7 +115,7 @@ func TestStringArg(t *testing.T) {
 		}
 
 		args := Args{}
-		parse(&args)
+		parse(os.Args, &args)
 
 		if args.Email != "test@company.com" {
 			t.Fatalf("expected email to be set, got '%s'", args.Email)
@@ -130,7 +130,7 @@ func TestStringSliceArg(t *testing.T) {
 		}
 
 		args := Args{}
-		parse(&args)
+		parse(os.Args, &args)
 
 		if len(args.Notify) != 2 || args.Notify[0] != "#eng" || args.Notify[1] != "#ops" {
 			t.Fatalf("unexpected slice values: %+v", args.Notify)
@@ -146,7 +146,7 @@ func TestPositionalArgs(t *testing.T) {
 		}
 
 		args := Args{}
-		parse(&args)
+		parse(os.Args, &args)
 
 		if args.EmployeeID != "EMP123" {
 			t.Fatalf("expected EmployeeID 'EMP123', got '%s'", args.EmployeeID)
@@ -165,7 +165,7 @@ func TestPositionalArgsDoubleDash(t *testing.T) {
 		}
 
 		args := Args{}
-		parse(&args)
+		parse(os.Args, &args)
 
 		if args.EmployeeID != "-EMP123-" {
 			t.Fatalf("expected EmployeeID 'EMP123', got '%s'", args.EmployeeID)
@@ -184,7 +184,7 @@ func TestPositionalSliceArgs(t *testing.T) {
 		}
 
 		args := Args{}
-		parse(&args)
+		parse(os.Args, &args)
 
 		if args.EmployeeID != "EMP123" {
 			t.Fatalf("expected EmployeeID 'EMP123', got '%s'", args.EmployeeID)
@@ -204,7 +204,7 @@ func TestPositionalDefault(t *testing.T) {
 		}
 
 		args := Args{}
-		parse(&args)
+		parse(os.Args, &args)
 
 		if args.Department != "Design" {
 			t.Fatalf("expected default Department 'Design', got '%s'", args.Department)
@@ -219,7 +219,7 @@ func TestBoolDefaultFalse(t *testing.T) {
 		}
 
 		args := Args{}
-		parse(&args)
+		parse(os.Args, &args)
 
 		if args.Apprenticeship {
 			t.Fatal("expected Apprenticeship to be false by default")
@@ -240,7 +240,7 @@ func TestMissingMandatoryPanics(t *testing.T) {
 		}
 
 		args := Args{}
-		parse(&args)
+		parse(os.Args, &args)
 	})
 }
 
@@ -257,7 +257,7 @@ func TestMissingShortAndLongPanics(t *testing.T) {
 		}
 
 		args := Args{}
-		parse(&args)
+		parse(os.Args, &args)
 	})
 }
 
@@ -268,7 +268,7 @@ func TestDurationArg(t *testing.T) {
 		}
 
 		args := Args{}
-		parse(&args)
+		parse(os.Args, &args)
 
 		if fmt.Sprintf("%v", args.Duration) != "1h12m2s" {
 			t.FailNow()
@@ -283,10 +283,92 @@ func TestDefaultValueWithBackslash(t *testing.T) {
 		}
 
 		args := Args{}
-		parse(&args)
+		parse(os.Args, &args)
 
 		if fmt.Sprintf("%v", args.Path) != "C:\\Users\\user\\My Documents\\" {
 			t.Fatal(args.Path)
+		}
+	})
+}
+
+func TestSubCommands1(t *testing.T) {
+	withArgs([]string{"prog", "--insecure", "add", "--name", "mymodule"}, func() {
+		type Args struct {
+			Insecure bool
+			Command  string `clap:"command,mandatory"`
+
+			Add struct {
+				Name string
+			}
+
+			Remove struct {
+				Name  string
+				Force bool
+			}
+		}
+
+		args := Args{}
+		parse(os.Args, &args)
+
+		if !args.Insecure {
+			t.Fatal("Expected Insecure == true")
+		}
+		if args.Add.Name != "mymodule" {
+			t.Fatalf("Expected Add.Name == 'mymodule', but got '%s'", args.Add.Name)
+		}
+	})
+}
+
+func TestSubCommands2(t *testing.T) {
+	withArgs([]string{"prog", "--insecure", "remove", "--name", "mymodule", "--force"}, func() {
+		type Args struct {
+			Insecure bool
+			Command  string `clap:"command,mandatory"`
+
+			Add struct {
+				Name string
+			}
+
+			Remove struct {
+				Name  string
+				Force bool
+			}
+		}
+
+		args := Args{}
+		parse(os.Args, &args)
+
+		if !args.Insecure {
+			t.Fatal("Expected Insecure == true")
+		}
+		if args.Remove.Name != "mymodule" {
+			t.Fatalf("Expected Remove.Name == 'mymodule', but got '%s'", args.Remove.Name)
+		}
+		if !args.Remove.Force {
+			t.Fatalf("Expected Remove.Force == true")
+		}
+	})
+}
+
+func TestSubSubCommands(t *testing.T) {
+	withArgs([]string{"prog", "files", "list", "-H"}, func() {
+		type Args struct {
+			Command string `clap:"command,mandatory"`
+
+			Files struct {
+				Command string `clap:"command,mandatory"`
+
+				List struct {
+					ShowHidden bool `clap:"short=H"`
+				}
+			}
+		}
+
+		args := Args{}
+		parse(os.Args, &args)
+
+		if !args.Files.List.ShowHidden {
+			t.Fatalf("Expected Files.List.Hidden == true")
 		}
 	})
 }
