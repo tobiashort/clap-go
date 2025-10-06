@@ -79,7 +79,7 @@ Notify:         [#design #it]
 ```
 
 ```shell
-$ go run ./example -h
+$ go run ./example/basic -h
 This example shall demonstrate how this command line argument parsers works.
 
 Usage:
@@ -103,6 +103,67 @@ Positional arguments:
   Department                   Department name (e.g., Engineering, HR) (required, can be specified multiple times)⏎
 ```
 
+## Support for nested commands
+
+```go
+package main
+
+import (
+	"fmt"
+
+	"github.com/tobiashort/clap-go"
+)
+
+type Args struct {
+	Command string `clap:"command,mandatory,description='The command to run'"`
+
+	List struct {
+	} `clap:"description='List all members'"`
+
+	Add struct {
+		Name string `clap:"positional,mandatory"`
+	} `clap:"description='Adds a member'"`
+
+	Remove struct {
+		Name string `clap:"positional,mandatory"`
+	} `clap:"description='Removes a member'"`
+}
+
+func main() {
+	args := Args{}
+	clap.Parse(&args)
+
+	switch args.Command {
+	case "list":
+		fmt.Println("1: Alice")
+		fmt.Println("2: Bob")
+		fmt.Println("3: Chris")
+	case "add":
+		fmt.Println("Added " + args.Add.Name)
+	case "remove":
+		fmt.Println("Removed " + args.Remove.Name)
+	}
+}
+```
+
+```shell
+$ go run ./example/commands -h
+Usage:
+  main [OPTIONS] <Command>
+
+Options:
+  -h, --help             Show this help message and exit
+
+Positional arguments:
+  Command                The command to run (required)
+
+Commands:
+  list                   List all members
+  add                    Adds a member
+  remove                 Removes a member
+
+```
+
 ## 🧠 Supported Tag Options
 
 The clap struct tag supports the following options:
@@ -116,4 +177,5 @@ The clap struct tag supports the following options:
 |conflicts-with=x|string |Mutually exclusive with another field                  |
 |positional      |keyword|Argument must be passed in a specific position         |
 |default-value   |string |Default value                                          |
+|command         |string |Command sub parsing                                    |
 

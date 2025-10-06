@@ -7,18 +7,18 @@ import (
 )
 
 type Args struct {
-	Command string `clap:"command,mandatory"`
+	Command string `clap:"command,mandatory,description='The command to run'"`
 
 	List struct {
-	}
+	} `clap:"description='List all members'"`
 
 	Add struct {
 		Name string `clap:"positional,mandatory"`
-	}
+	} `clap:"description='Adds a member'"`
 
 	Remove struct {
 		Name string `clap:"positional,mandatory"`
-	}
+	} `clap:"description='Removes a member'"`
 }
 
 func main() {
