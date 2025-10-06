@@ -5,29 +5,31 @@ import "fmt"
 type CursorControl = string
 
 const (
-	MoveCursorToHomePosition CursorControl = "\033[H"
+	CursorHide               CursorControl = "\033[?25l"
+	CursorShow               CursorControl = "\033[?25h"
+	CursorMoveToHomePosition CursorControl = "\033[H"
 )
 
-func MoveCursorTo(line, column int) CursorControl {
+func CursorMoveTo(line, column int) CursorControl {
 	return fmt.Sprintf("\033[%d;%dH", line, column)
 }
 
-func MoveCursorUp(lines int) CursorControl {
+func CursorMoveUp(lines int) CursorControl {
 	return fmt.Sprintf("\033[%dA", lines)
 }
 
-func MoveCursorDown(lines int) CursorControl {
+func CursorMoveDown(lines int) CursorControl {
 	return fmt.Sprintf("\033[%dB", lines)
 }
 
-func MoveCursorRight(columns int) CursorControl {
+func CursorMoveRight(columns int) CursorControl {
 	return fmt.Sprintf("\033[%dC", columns)
 }
 
-func MoveCursorLeft(columns int) CursorControl {
+func CursorMoveLeft(columns int) CursorControl {
 	return fmt.Sprintf("\033[%dD", columns)
 }
 
-func MoveCursorToColumn(column int) CursorControl {
+func CursorMoveToColumn(column int) CursorControl {
 	return fmt.Sprintf("\033[%dG", column)
 }

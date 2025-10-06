@@ -11,33 +11,33 @@ import (
 )
 
 var regexps = map[*regexp.Regexp]ansi.Decor{
-	makeRegexp("B"):  ansi.Bold,
-	makeRegexp("U"):  ansi.Underline,
-	makeRegexp("R"):  ansi.Reversed,
-	makeRegexp("r"):  ansi.Red,
-	makeRegexp("rB"): ansi.Red + ansi.Bold,
-	makeRegexp("rU"): ansi.Red + ansi.Underline,
-	makeRegexp("rR"): ansi.Red + ansi.Reversed,
-	makeRegexp("g"):  ansi.Green,
-	makeRegexp("gB"): ansi.Green + ansi.Bold,
-	makeRegexp("gU"): ansi.Green + ansi.Underline,
-	makeRegexp("gR"): ansi.Green + ansi.Reversed,
-	makeRegexp("y"):  ansi.Yellow,
-	makeRegexp("yB"): ansi.Yellow + ansi.Bold,
-	makeRegexp("yU"): ansi.Yellow + ansi.Underline,
-	makeRegexp("yR"): ansi.Yellow + ansi.Reversed,
-	makeRegexp("b"):  ansi.Blue,
-	makeRegexp("bB"): ansi.Blue + ansi.Bold,
-	makeRegexp("bU"): ansi.Blue + ansi.Underline,
-	makeRegexp("bR"): ansi.Blue + ansi.Reversed,
-	makeRegexp("p"):  ansi.Purple,
-	makeRegexp("pB"): ansi.Purple + ansi.Bold,
-	makeRegexp("pU"): ansi.Purple + ansi.Underline,
-	makeRegexp("pR"): ansi.Purple + ansi.Reversed,
-	makeRegexp("c"):  ansi.Cyan,
-	makeRegexp("cB"): ansi.Cyan + ansi.Bold,
-	makeRegexp("cU"): ansi.Cyan + ansi.Underline,
-	makeRegexp("cR"): ansi.Cyan + ansi.Reversed,
+	makeRegexp("B"):  ansi.DecorBold,
+	makeRegexp("U"):  ansi.DecorUnderline,
+	makeRegexp("R"):  ansi.DecorReversed,
+	makeRegexp("r"):  ansi.DecorRed,
+	makeRegexp("rB"): ansi.DecorRed + ansi.DecorBold,
+	makeRegexp("rU"): ansi.DecorRed + ansi.DecorUnderline,
+	makeRegexp("rR"): ansi.DecorRed + ansi.DecorReversed,
+	makeRegexp("g"):  ansi.DecorGreen,
+	makeRegexp("gB"): ansi.DecorGreen + ansi.DecorBold,
+	makeRegexp("gU"): ansi.DecorGreen + ansi.DecorUnderline,
+	makeRegexp("gR"): ansi.DecorGreen + ansi.DecorReversed,
+	makeRegexp("y"):  ansi.DecorYellow,
+	makeRegexp("yB"): ansi.DecorYellow + ansi.DecorBold,
+	makeRegexp("yU"): ansi.DecorYellow + ansi.DecorUnderline,
+	makeRegexp("yR"): ansi.DecorYellow + ansi.DecorReversed,
+	makeRegexp("b"):  ansi.DecorBlue,
+	makeRegexp("bB"): ansi.DecorBlue + ansi.DecorBold,
+	makeRegexp("bU"): ansi.DecorBlue + ansi.DecorUnderline,
+	makeRegexp("bR"): ansi.DecorBlue + ansi.DecorReversed,
+	makeRegexp("p"):  ansi.DecorPurple,
+	makeRegexp("pB"): ansi.DecorPurple + ansi.DecorBold,
+	makeRegexp("pU"): ansi.DecorPurple + ansi.DecorUnderline,
+	makeRegexp("pR"): ansi.DecorPurple + ansi.DecorReversed,
+	makeRegexp("c"):  ansi.DecorCyan,
+	makeRegexp("cB"): ansi.DecorCyan + ansi.DecorBold,
+	makeRegexp("cU"): ansi.DecorCyan + ansi.DecorUnderline,
+	makeRegexp("cR"): ansi.DecorCyan + ansi.DecorReversed,
 }
 
 func makeRegexp(name string) *regexp.Regexp {
@@ -46,54 +46,54 @@ func makeRegexp(name string) *regexp.Regexp {
 
 func Print(a ...any) {
 	for i := range a {
-		a[i] = clr(fmt.Sprint(a[i]), ansi.Reset)
+		a[i] = clr(fmt.Sprint(a[i]), ansi.DecorReset)
 	}
 	fmt.Print(a...)
 }
 
 func Printf(format string, a ...any) {
-	fmt.Printf(clr(format, ansi.Reset), a...)
+	fmt.Printf(clr(format, ansi.DecorReset), a...)
 }
 
 func Println(a ...any) {
 	for i := range a {
-		a[i] = clr(fmt.Sprint(a[i]), ansi.Reset)
+		a[i] = clr(fmt.Sprint(a[i]), ansi.DecorReset)
 	}
 	fmt.Println(a...)
 }
 
 func Fprint(w io.Writer, a ...any) {
 	for i := range a {
-		a[i] = clr(fmt.Sprint(a[i]), ansi.Reset)
+		a[i] = clr(fmt.Sprint(a[i]), ansi.DecorReset)
 	}
 	fmt.Fprint(w, a...)
 }
 
 func Fprintf(w io.Writer, format string, a ...any) {
-	fmt.Fprintf(w, clr(format, ansi.Reset), a...)
+	fmt.Fprintf(w, clr(format, ansi.DecorReset), a...)
 }
 
 func Fprintln(w io.Writer, a ...any) {
 	for i := range a {
-		a[i] = clr(fmt.Sprint(a[i]), ansi.Reset)
+		a[i] = clr(fmt.Sprint(a[i]), ansi.DecorReset)
 	}
 	fmt.Fprintln(w, a...)
 }
 
 func Sprint(a ...any) string {
 	for i := range a {
-		a[i] = clr(fmt.Sprint(a[i]), ansi.Reset)
+		a[i] = clr(fmt.Sprint(a[i]), ansi.DecorReset)
 	}
 	return fmt.Sprint(a...)
 }
 
 func Sprintf(format string, a ...any) string {
-	return fmt.Sprintf(clr(format, ansi.Reset), a...)
+	return fmt.Sprintf(clr(format, ansi.DecorReset), a...)
 }
 
 func Sprintln(a ...any) string {
 	for i := range a {
-		a[i] = clr(fmt.Sprint(a[i]), ansi.Reset)
+		a[i] = clr(fmt.Sprint(a[i]), ansi.DecorReset)
 	}
 	return fmt.Sprintln(a...)
 }
@@ -101,61 +101,61 @@ func Sprintln(a ...any) string {
 func stoc(s string) ansi.Decor {
 	switch s {
 	case "r":
-		return ansi.Red
+		return ansi.DecorRed
 	case "g":
-		return ansi.Green
+		return ansi.DecorGreen
 	case "y":
-		return ansi.Yellow
+		return ansi.DecorYellow
 	case "b":
-		return ansi.Blue
+		return ansi.DecorBlue
 	case "p":
-		return ansi.Purple
+		return ansi.DecorPurple
 	case "c":
-		return ansi.Cyan
+		return ansi.DecorCyan
 	case "B":
-		return ansi.Bold
+		return ansi.DecorBold
 	case "rB":
-		return ansi.Red + ansi.Bold
+		return ansi.DecorRed + ansi.DecorBold
 	case "gB":
-		return ansi.Green + ansi.Bold
+		return ansi.DecorGreen + ansi.DecorBold
 	case "yB":
-		return ansi.Yellow + ansi.Bold
+		return ansi.DecorYellow + ansi.DecorBold
 	case "bB":
-		return ansi.Blue + ansi.Bold
+		return ansi.DecorBlue + ansi.DecorBold
 	case "pB":
-		return ansi.Purple + ansi.Bold
+		return ansi.DecorPurple + ansi.DecorBold
 	case "cB":
-		return ansi.Cyan + ansi.Bold
+		return ansi.DecorCyan + ansi.DecorBold
 	case "U":
-		return ansi.Underline
+		return ansi.DecorUnderline
 	case "rU":
-		return ansi.Red + ansi.Underline
+		return ansi.DecorRed + ansi.DecorUnderline
 	case "gU":
-		return ansi.Green + ansi.Underline
+		return ansi.DecorGreen + ansi.DecorUnderline
 	case "yU":
-		return ansi.Yellow + ansi.Underline
+		return ansi.DecorYellow + ansi.DecorUnderline
 	case "bU":
-		return ansi.Blue + ansi.Underline
+		return ansi.DecorBlue + ansi.DecorUnderline
 	case "pU":
-		return ansi.Purple + ansi.Underline
+		return ansi.DecorPurple + ansi.DecorUnderline
 	case "cU":
-		return ansi.Cyan + ansi.Underline
+		return ansi.DecorCyan + ansi.DecorUnderline
 	case "R":
-		return ansi.Reversed
+		return ansi.DecorReversed
 	case "rR":
-		return ansi.Red + ansi.Reversed
+		return ansi.DecorRed + ansi.DecorReversed
 	case "gR":
-		return ansi.Green + ansi.Reversed
+		return ansi.DecorGreen + ansi.DecorReversed
 	case "yR":
-		return ansi.Yellow + ansi.Reversed
+		return ansi.DecorYellow + ansi.DecorReversed
 	case "bR":
-		return ansi.Blue + ansi.Reversed
+		return ansi.DecorBlue + ansi.DecorReversed
 	case "pR":
-		return ansi.Purple + ansi.Reversed
+		return ansi.DecorPurple + ansi.DecorReversed
 	case "cR":
-		return ansi.Cyan + ansi.Reversed
+		return ansi.DecorCyan + ansi.DecorReversed
 	default:
-		panic(fmt.Errorf("cannot map string '%s' to ansi color", s))
+		panic(fmt.Errorf("cannot map string '%s' to ansi Decorcolor", s))
 	}
 }
 
@@ -169,7 +169,7 @@ func CPrint(s string, a ...any) {
 	}
 	fmt.Print(a...)
 	if isatty.IsTerminal() {
-		fmt.Print(ansi.Reset)
+		fmt.Print(ansi.DecorReset)
 	}
 }
 
@@ -180,7 +180,7 @@ func CPrintf(s string, format string, a ...any) {
 	}
 	fmt.Printf(clr(format, c), a...)
 	if isatty.IsTerminal() {
-		fmt.Print(ansi.Reset)
+		fmt.Print(ansi.DecorReset)
 	}
 }
 
@@ -194,7 +194,7 @@ func CPrintln(s string, a ...any) {
 	}
 	fmt.Println(a...)
 	if isatty.IsTerminal() {
-		fmt.Print(ansi.Reset)
+		fmt.Print(ansi.DecorReset)
 	}
 }
 
@@ -210,4 +210,12 @@ func clr(str string, reset ansi.Decor) string {
 		}
 	}
 	return str
+}
+
+func Begin(decor ansi.Decor) {
+	fmt.Print(decor)
+}
+
+func End() {
+	fmt.Print(ansi.DecorReset)
 }
