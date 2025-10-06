@@ -448,7 +448,7 @@ func checkForNameCollisions(args []arg) {
 	seenLong := make(map[string]arg)
 	seenShort := make(map[string]arg)
 	for _, arg := range args {
-		if arg.positional {
+		if arg.positional || arg.kind == reflect.Struct {
 			continue
 		}
 		if arg.long != "" {
