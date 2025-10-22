@@ -97,7 +97,8 @@ func Parse(strct any) {
 			case userError:
 				fmt.Fprintln(os.Stderr, err.Error())
 				if err.args != nil {
-					printHelp(err.args, os.Stdout)
+					fmt.Fprint(os.Stderr, "\n")
+					printHelp(err.args, os.Stderr)
 				}
 				os.Exit(1)
 			default:
