@@ -99,6 +99,7 @@ func Parse(strct any) {
 				if err.args != nil {
 					fmt.Fprint(os.Stderr, "\n")
 					printHelp(err.args, os.Stderr)
+					fmt.Fprint(os.Stderr, "\n")
 				}
 				os.Exit(1)
 			default:
