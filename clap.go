@@ -61,7 +61,8 @@ func (arg arg) String() string {
 }
 
 type userError struct {
-	msg string
+	msg  string
+	args []arg
 }
 
 func (err userError) Error() string {
@@ -95,6 +96,9 @@ func Parse(strct any) {
 			switch err := r.(type) {
 			case userError:
 				fmt.Fprintln(os.Stderr, err.Error())
+				if err.args != nil {
+					printHelp(err.args, os.Stdout)
+				}
 				os.Exit(1)
 			default:
 				panic(r)
@@ -210,7 +214,7 @@ osArgsLoop:
 			}
 			arg, ok := getArgByLongName(programArgs, long)
 			if !ok {
-				userErr("unknown argument: --" + long)
+				userErr("unknown argument: --"+long, programArgs)
 			} else {
 				givenNonPositionalArgs = append(givenNonPositionalArgs, arg)
 			}
@@ -225,7 +229,7 @@ osArgsLoop:
 				}
 				arg, ok := getArgByShortName(programArgs, short)
 				if !ok {
-					userErr("unknown argument: -" + short)
+					userErr("unknown argument: -"+short, programArgs)
 				} else {
 					givenNonPositionalArgs = append(givenNonPositionalArgs, arg)
 				}
@@ -233,9 +237,9 @@ osArgsLoop:
 			}
 		} else {
 			if len(programPositionalArgs) == 0 {
-				userErr("too many arguments")
+				userErr("too many arguments", programArgs)
 			} else if positionalArgIndex >= len(programPositionalArgs) && programPositionalArgs[len(programPositionalArgs)-1].kind != reflect.Slice {
-				userErr("too many arguments")
+				userErr("too many arguments", programArgs)
 			} else {
 				positionalArg := programPositionalArgs[positionalArgIndex]
 				givenPositionalArgs = append(givenPositionalArgs, positionalArg)
@@ -253,7 +257,7 @@ osArgsLoop:
 							break osArgsLoop
 						}
 					}
-					userErr("unknown command: " + osArgs[i])
+					userErr("unknown command: "+osArgs[i], programArgs)
 				} else if positionalArgIndex+1 < len(programPositionalArgs) {
 					positionalArgIndex++
 				}
@@ -294,7 +298,7 @@ func parseNonPositionalAtIndex(osArgs []string, arg arg, strct any, index int) i
 		return index
 	} else {
 		if index+1 >= len(osArgs) {
-			userErr(fmt.Sprintf("missing value for: %s", arg))
+			userErr(fmt.Sprintf("missing value for: %s", arg), nil)
 		}
 		value := osArgs[index+1]
 		parseNonPositional(arg, strct, value)
@@ -367,7 +371,7 @@ func parsePositional(arg arg, strct any, value string) {
 func parseInt(arg string) int {
 	val, err := strconv.Atoi(arg)
 	if err != nil {
-		userErr("value is not an int: " + arg)
+		userErr("value is not an int: "+arg, nil)
 	}
 	return val
 }
@@ -375,7 +379,7 @@ func parseInt(arg string) int {
 func parseFloat(arg string) float64 {
 	val, err := strconv.ParseFloat(arg, 64)
 	if err != nil {
-		userErr("value is not a float: " + arg)
+		userErr("value is not a float: "+arg, nil)
 	}
 	return val
 }
@@ -383,7 +387,7 @@ func parseFloat(arg string) float64 {
 func parseDuration(arg string) time.Duration {
 	val, err := time.ParseDuration(arg)
 	if err != nil {
-		userErr("value is not a duration: " + arg)
+		userErr("value is not a duration: "+arg, nil)
 	}
 	return val
 }
@@ -529,7 +533,7 @@ func checkForConflicts(givenNonPositionalArgs []arg) {
 		for _, inConflict := range outerArg.conflictsWith {
 			for _, innerArg := range givenNonPositionalArgs {
 				if innerArg.name == inConflict {
-					userErr(fmt.Sprintf("conflicting arguments: %s, %s", outerArg, innerArg))
+					userErr(fmt.Sprintf("conflicting arguments: %s, %s", outerArg, innerArg), nil)
 				}
 			}
 		}
@@ -550,9 +554,9 @@ outer:
 				}
 			}
 			if arg.positional {
-				userErr(fmt.Sprintf("missing mandatory positional argument: %s", arg.name))
+				userErr(fmt.Sprintf("missing mandatory positional argument: %s", arg.name), programArgs)
 			} else {
-				userErr(fmt.Sprintf("missing mandatory argument: %s", arg))
+				userErr(fmt.Sprintf("missing mandatory argument: %s", arg), programArgs)
 			}
 		}
 	}
@@ -566,7 +570,7 @@ func checkForMultipleUse(givenNonPositionalArgs []arg) {
 			seen[arg.name] = true
 		} else {
 			if arg.kind != reflect.Slice {
-				userErr(fmt.Sprintf("multiple use of argument %s", arg))
+				userErr(fmt.Sprintf("multiple use of argument %s", arg), nil)
 			}
 		}
 	}
@@ -811,8 +815,8 @@ func developerErr(msg string) {
 	panic(developerError{msg})
 }
 
-func userErr(msg string) {
-	panic(userError{msg})
+func userErr(msg string, args []arg) {
+	panic(userError{msg: msg, args: args})
 }
 
 func toKebabCase(s string) string {
