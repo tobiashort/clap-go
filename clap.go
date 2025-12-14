@@ -156,7 +156,7 @@ func parse(osArgs []string, strct any) {
 					command = true
 					positional = true
 				} else {
-					developerErr("unknown tag value: " + tagValue)
+					developerErr(fmt.Sprintf("unknown tag value: %s. Valid tage values are: short, long, conflicts-with, default-value, description, mandatory, positional, command.", tagValue))
 				}
 			}
 		}
