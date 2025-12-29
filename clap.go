@@ -20,6 +20,7 @@ var (
 	prog        string
 	description string
 	example     string
+	parseCalled bool
 )
 
 func init() {
@@ -82,10 +83,16 @@ func Prog(s string) {
 }
 
 func Description(s string) {
+	if parseCalled {
+		userErr("Description must be called before Parse", nil)
+	}
 	description = s
 }
 
 func Example(s string) {
+	if parseCalled {
+		userErr("Example must be called before Parse", nil)
+	}
 	example = s
 }
 
@@ -107,6 +114,7 @@ func Parse(strct any) {
 			}
 		}
 	}()
+	parseCalled = true
 	parse(os.Args, strct)
 }
 
