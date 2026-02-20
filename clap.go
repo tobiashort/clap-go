@@ -169,6 +169,11 @@ func parse(osArgs []string, strct any) {
 			}
 		}
 
+		if positional {
+			short = ""
+			long = ""
+		}
+
 		programArgs = append(programArgs, arg{
 			name:          field.Name,
 			type_:         field.Type,
