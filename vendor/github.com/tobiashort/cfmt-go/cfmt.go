@@ -3,6 +3,7 @@ package cfmt
 import (
 	"fmt"
 	"io"
+	"os"
 	"regexp"
 	"strings"
 
@@ -99,102 +100,88 @@ func Sprintln(a ...any) string {
 }
 
 func stoc(s string) ansi.Decor {
+	//nofmt:enable
 	switch s {
-	case "r":
-		return ansi.DecorRed
-	case "g":
-		return ansi.DecorGreen
-	case "y":
-		return ansi.DecorYellow
-	case "b":
-		return ansi.DecorBlue
-	case "p":
-		return ansi.DecorPurple
-	case "c":
-		return ansi.DecorCyan
-	case "B":
-		return ansi.DecorBold
-	case "rB":
-		return ansi.DecorRed + ansi.DecorBold
-	case "gB":
-		return ansi.DecorGreen + ansi.DecorBold
-	case "yB":
-		return ansi.DecorYellow + ansi.DecorBold
-	case "bB":
-		return ansi.DecorBlue + ansi.DecorBold
-	case "pB":
-		return ansi.DecorPurple + ansi.DecorBold
-	case "cB":
-		return ansi.DecorCyan + ansi.DecorBold
-	case "U":
-		return ansi.DecorUnderline
-	case "rU":
-		return ansi.DecorRed + ansi.DecorUnderline
-	case "gU":
-		return ansi.DecorGreen + ansi.DecorUnderline
-	case "yU":
-		return ansi.DecorYellow + ansi.DecorUnderline
-	case "bU":
-		return ansi.DecorBlue + ansi.DecorUnderline
-	case "pU":
-		return ansi.DecorPurple + ansi.DecorUnderline
-	case "cU":
-		return ansi.DecorCyan + ansi.DecorUnderline
-	case "R":
-		return ansi.DecorReversed
-	case "rR":
-		return ansi.DecorRed + ansi.DecorReversed
-	case "gR":
-		return ansi.DecorGreen + ansi.DecorReversed
-	case "yR":
-		return ansi.DecorYellow + ansi.DecorReversed
-	case "bR":
-		return ansi.DecorBlue + ansi.DecorReversed
-	case "pR":
-		return ansi.DecorPurple + ansi.DecorReversed
-	case "cR":
-		return ansi.DecorCyan + ansi.DecorReversed
-	default:
-		panic(fmt.Errorf("cannot map string '%s' to ansi Decorcolor", s))
+	case "r":  return ansi.DecorRed
+	case "g":  return ansi.DecorGreen
+	case "y":  return ansi.DecorYellow
+	case "b":  return ansi.DecorBlue
+	case "p":  return ansi.DecorPurple
+	case "c":  return ansi.DecorCyan
+	case "B":  return ansi.DecorBold
+	case "rB": return ansi.DecorRed + ansi.DecorBold
+	case "gB": return ansi.DecorGreen + ansi.DecorBold
+	case "yB": return ansi.DecorYellow + ansi.DecorBold
+	case "bB": return ansi.DecorBlue + ansi.DecorBold
+	case "pB": return ansi.DecorPurple + ansi.DecorBold
+	case "cB": return ansi.DecorCyan + ansi.DecorBold
+	case "U":  return ansi.DecorUnderline
+	case "rU": return ansi.DecorRed + ansi.DecorUnderline
+	case "gU": return ansi.DecorGreen + ansi.DecorUnderline
+	case "yU": return ansi.DecorYellow + ansi.DecorUnderline
+	case "bU": return ansi.DecorBlue + ansi.DecorUnderline
+	case "pU": return ansi.DecorPurple + ansi.DecorUnderline
+	case "cU": return ansi.DecorCyan + ansi.DecorUnderline
+	case "R":  return ansi.DecorReversed
+	case "rR": return ansi.DecorRed + ansi.DecorReversed
+	case "gR": return ansi.DecorGreen + ansi.DecorReversed
+	case "yR": return ansi.DecorYellow + ansi.DecorReversed
+	case "bR": return ansi.DecorBlue + ansi.DecorReversed
+	case "pR": return ansi.DecorPurple + ansi.DecorReversed
+	case "cR": return ansi.DecorCyan + ansi.DecorReversed
+	default: panic(fmt.Errorf("cannot map string '%s' to ansi Decorcolor", s))
 	}
+	//nofmt:disable
 }
 
-func CPrint(s string, a ...any) {
-	c := stoc(s)
+func Cprint(color string, a ...any) {
+	Cfprint(os.Stdout, color, a...)
+}
+
+func Cfprint(w io.Writer, color string, a ...any) {
+	c := stoc(color)
 	for i := range a {
 		a[i] = clr(fmt.Sprint(a[i]), c)
 	}
 	if isatty.IsTerminal() {
-		fmt.Print(c)
+		fmt.Fprint(w, c)
 	}
-	fmt.Print(a...)
+	fmt.Fprint(w, a...)
 	if isatty.IsTerminal() {
-		fmt.Print(ansi.DecorReset)
+		fmt.Fprint(w, ansi.DecorReset)
 	}
 }
 
-func CPrintf(s string, format string, a ...any) {
-	c := stoc(s)
+func Cprintf(color string, format string, a ...any) {
+	Cfprintf(os.Stdout, color, format)
+}
+
+func Cfprintf(w io.Writer, color string, format string, a ...any) {
+	c := stoc(color)
 	if isatty.IsTerminal() {
-		fmt.Print(c)
+		fmt.Fprint(w, c)
 	}
-	fmt.Printf(clr(format, c), a...)
+	fmt.Fprintf(w, clr(format, c), a...)
 	if isatty.IsTerminal() {
-		fmt.Print(ansi.DecorReset)
+		fmt.Fprint(w, ansi.DecorReset)
 	}
 }
 
-func CPrintln(s string, a ...any) {
-	c := stoc(s)
+func Cprintln(color string, a ...any) {
+	Cfprintln(os.Stdout, color, a...)
+}
+
+func Cfprintln(w io.Writer, color string, a ...any) {
+	c := stoc(color)
 	for i := range a {
 		a[i] = clr(fmt.Sprint(a[i]), c)
 	}
 	if isatty.IsTerminal() {
-		fmt.Print(c)
+		fmt.Fprint(w, c)
 	}
-	fmt.Println(a...)
+	fmt.Fprintln(w, a...)
 	if isatty.IsTerminal() {
-		fmt.Print(ansi.DecorReset)
+		fmt.Fprint(w, ansi.DecorReset)
 	}
 }
 
@@ -213,9 +200,13 @@ func clr(str string, reset ansi.Decor) string {
 }
 
 func Begin(decor ansi.Decor) {
-	fmt.Print(decor)
+	if isatty.IsTerminal() {
+		fmt.Print(decor)
+	}
 }
 
 func End() {
-	fmt.Print(ansi.DecorReset)
+	if isatty.IsTerminal() {
+		fmt.Print(ansi.DecorReset)
+	}
 }
