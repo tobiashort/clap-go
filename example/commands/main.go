@@ -7,7 +7,7 @@ import (
 )
 
 type Args struct {
-	Command string `clap:"command,mandatory,description='The command to run'"`
+	Command any `clap:"command,mandatory,description='The command to run'"`
 
 	List struct {
 	} `clap:"description='List all members'"`
@@ -26,13 +26,15 @@ func main() {
 	clap.Parse(&args)
 
 	switch args.Command {
-	case "list":
+	case &args.List:
 		fmt.Println("1: Alice")
 		fmt.Println("2: Bob")
 		fmt.Println("3: Chris")
-	case "add":
+	case &args.Add:
 		fmt.Println("Added " + args.Add.Name)
-	case "remove":
+	case &args.Remove:
 		fmt.Println("Removed " + args.Remove.Name)
+	default:
+		panic("unreachable")
 	}
 }

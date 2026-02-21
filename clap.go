@@ -376,6 +376,8 @@ func parsePositional(arg arg, strct any, value string) {
 			developerErr("not implemented argument kind []" + innerKind.String())
 		}
 		addToSlice(strct, arg.name, parsed)
+	} else if arg.kind == reflect.Interface && arg.command {
+		setPointerTo(strct, arg.name, value)
 	} else if arg.type_ == reflect.TypeOf(time.Duration(0)) {
 		setDuration(strct, arg.name, parseDuration(value))
 	} else {
@@ -448,6 +450,13 @@ func setString(strct any, name string, val string) {
 
 func setDuration(strct any, name string, val time.Duration) {
 	reflect.ValueOf(strct).Elem().FieldByName(name).Set(reflect.ValueOf(val))
+}
+
+func setPointerTo(strct any, name string, val string) {
+	command := reflect.ValueOf(strct).Elem().FieldByName(kebabToPascalCase(val))
+	if command.IsValid() {
+		reflect.ValueOf(strct).Elem().FieldByName(name).Set(command.Addr())
+	}
 }
 
 func setStruct(strct any, name string, val any) {
@@ -852,6 +861,14 @@ func toKebabCase(s string) string {
 		words[i] = strings.ToLower(words[i])
 	}
 	return strings.Join(words, "-")
+}
+
+func kebabToPascalCase(s string) string {
+	words := strings.Split(s, "-")
+	for i := range words {
+		words[i] = strings.Title(strings.ToLower(words[i]))
+	}
+	return strings.Join(words, "")
 }
 
 func filterArgs(args []arg, predicate func(arg arg) bool) []arg {
