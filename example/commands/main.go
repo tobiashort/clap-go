@@ -19,6 +19,9 @@ type Args struct {
 	Remove struct {
 		Name string `clap:"positional,mandatory"`
 	} `clap:"description='Removes a member'"`
+
+	Foo any `clap:"description='The foo command'"`
+	Bar any `clap:"description='The bar command'"`
 }
 
 func main() {
@@ -34,6 +37,10 @@ func main() {
 		fmt.Println("Added " + args.Add.Name)
 	case &args.Remove:
 		fmt.Println("Removed " + args.Remove.Name)
+	case &args.Foo:
+		fmt.Println("foo")
+	case &args.Bar:
+		fmt.Println("bar")
 	default:
 		panic("unreachable")
 	}

@@ -266,9 +266,13 @@ osArgsLoop:
 							prog = prog + " " + osArgs[i]
 							description = ""
 							example = ""
-							inst := reflect.New(field.Type)
-							parse(osArgs[i:], inst.Interface())
-							setStruct(strct, field.Name, inst.Elem().Interface())
+							if field.Type.Kind() == reflect.Struct {
+								inst := reflect.New(field.Type)
+								parse(osArgs[i:], inst.Interface())
+								setStruct(strct, field.Name, inst.Elem().Interface())
+							} else if field.Type.Kind() == reflect.Interface {
+								parse(osArgs[i:], new(struct{}))
+							}
 							break osArgsLoop
 						}
 					}
@@ -816,7 +820,7 @@ func printHelp(args []arg, w io.Writer) {
 				hasCommand = true
 			}
 		}
-		if arg.kind == reflect.Struct {
+		if arg.kind == reflect.Struct || arg.kind == reflect.Interface {
 			fmt.Fprintf(&buf, "  %-*s  %s\n", maxLabelLen, toKebabCase(arg.name), arg.description)
 		}
 	}
