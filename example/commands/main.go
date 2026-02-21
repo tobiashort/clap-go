@@ -9,19 +9,18 @@ import (
 type Args struct {
 	Command any `clap:"command,mandatory,description='The command to run'"`
 
-	List struct {
-	} `clap:"description='List all members'"`
+	List any `clap:"subcommand,description='List all members'"`
 
 	Add struct {
 		Name string `clap:"positional,mandatory"`
-	} `clap:"description='Adds a member'"`
+	} `clap:"subcommand,description='Adds a member'"`
 
 	Remove struct {
 		Name string `clap:"positional,mandatory"`
-	} `clap:"description='Removes a member'"`
+	} `clap:"subcommand,description='Removes a member'"`
 
-	Foo any `clap:"description='The foo command'"`
-	Bar any `clap:"description='The bar command'"`
+	Foo any `clap:"subcommand,description='The foo command'"`
+	Bar any `clap:"subcommand,description='The bar command'"`
 }
 
 func main() {

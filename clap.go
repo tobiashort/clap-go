@@ -38,6 +38,7 @@ type arg struct {
 	mandatory     bool
 	positional    bool
 	command       bool
+	subcommand    bool
 	description   string
 	defaultValue  string
 }
@@ -137,6 +138,7 @@ func parse(osArgs []string, strct any) {
 			mandatory     = false
 			positional    = false
 			command       = false
+			subcommand    = false
 			description   = ""
 			defaultValue  = ""
 		)
@@ -163,8 +165,11 @@ func parse(osArgs []string, strct any) {
 				} else if tagValue == "command" {
 					command = true
 					positional = true
+				} else if tagValue == "subcommand" {
+					subcommand = true
+					positional = true
 				} else {
-					developerErr(fmt.Sprintf("unknown tag value: %s. Valid tage values are: short, long, conflicts-with, default-value, description, mandatory, positional, command.", tagValue))
+					developerErr(fmt.Sprintf("unknown tag value: %s. Valid tage values are: short, long, conflicts-with, default-value, description, mandatory, positional, command, subcommand.", tagValue))
 				}
 			}
 		}
@@ -184,6 +189,7 @@ func parse(osArgs []string, strct any) {
 			mandatory:     mandatory,
 			positional:    positional,
 			command:       command,
+			subcommand:    subcommand,
 			description:   description,
 			defaultValue:  defaultValue,
 		})
@@ -480,7 +486,7 @@ func checkForNameCollisions(args []arg) {
 	seenLong := make(map[string]arg)
 	seenShort := make(map[string]arg)
 	for _, arg := range args {
-		if arg.positional || arg.kind == reflect.Struct {
+		if arg.positional {
 			continue
 		}
 		if arg.long != "" {
@@ -543,6 +549,9 @@ func checkForInvalidPositionalArguments(programPositionalArgs []arg) {
 		}
 		if arg.command && commandSeen {
 			developerErr("you cannot have multiple commands on the same level: " + arg.name)
+		}
+		if arg.command && arg.subcommand {
+			developerErr("you cannot declare a field as a command and a subcommand: " + arg.name)
 		}
 		if arg.kind == reflect.Slice {
 			sliceSeen = true
@@ -734,7 +743,7 @@ func printHelp(args []arg, w io.Writer) {
 	// Required options
 	hasRequired := false
 	for _, arg := range args {
-		if !arg.positional && arg.mandatory && arg.kind != reflect.Struct {
+		if !arg.positional && arg.mandatory {
 			if !hasRequired {
 				cfmt.Fprintln(&buf, "#B{Required options:}")
 				hasRequired = true
@@ -756,7 +765,7 @@ func printHelp(args []arg, w io.Writer) {
 	// Optional options
 	hasOptional := false
 	for _, arg := range args {
-		if !arg.positional && !arg.mandatory && arg.kind != reflect.Struct {
+		if !arg.positional && !arg.mandatory {
 			if !hasOptional {
 				cfmt.Fprintln(&buf, "#B{Options:}")
 				hasOptional = true
@@ -784,7 +793,7 @@ func printHelp(args []arg, w io.Writer) {
 	// Positional arguments
 	hasPositional := false
 	for _, arg := range args {
-		if arg.positional {
+		if arg.positional && !arg.subcommand {
 			if !hasPositional {
 				cfmt.Fprintln(&buf, "#B{Positional arguments:}")
 				hasPositional = true
@@ -820,7 +829,7 @@ func printHelp(args []arg, w io.Writer) {
 				hasCommand = true
 			}
 		}
-		if arg.kind == reflect.Struct || arg.kind == reflect.Interface {
+		if arg.subcommand {
 			fmt.Fprintf(&buf, "  %-*s  %s\n", maxLabelLen, toKebabCase(arg.name), arg.description)
 		}
 	}
