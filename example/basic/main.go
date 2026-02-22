@@ -8,25 +8,25 @@ import (
 )
 
 type Args struct {
-	Name           string        `clap:"mandatory,description='Full name of the new employee'"`
-	Email          string        `clap:"description='Company email address to assign'"`
-	Position       string        `clap:"long=title,short=t,description='Job title (e.g., Backend Engineer)'"`
-	FullTime       bool          `clap:"short=F,conflicts-with=PartTime,description='Mark as full-time employee'"`
-	PartTime       bool          `clap:"short=P,description='Mark as part-time employee'"`
-	Apprenticeship bool          `clap:"short=A,description='Indicates the employee is joining as an apprentice'"`
-	Salary         int           `clap:"default-value=9999,description='Starting salary in USD'"`
-	TeamsChannel   []string      `clap:"long=notify,short=N,description='Slack team channels to notify (e.g., #eng, #ops)'"`
-	EmployeeID     string        `clap:"positional,mandatory,description='Unique employee ID'"`
-	Department     []string      `clap:"positional,mandatory,description='Department name (e.g., Engineering, HR)'"`
-	LongOmitted    string        `clap:"mandatory,long=,description='No long name for this argument'"`
-	ShortOmitted   string        `clap:"mandatory,short=,description='No short name for this argument'"`
-	Duration       time.Duration `clap:"short=D,description='Duration like 1h12m0s'"`
+	Name           string        `clap:"mandatory,desc='Full name of the new employee'"`
+	Email          string        `clap:"desc='Company email address to assign'"`
+	Position       string        `clap:"long=title,short=t,desc='Job title (e.g., Backend Engineer)'"`
+	FullTime       bool          `clap:"short=F,conflicts-with=PartTime,desc='Mark as full-time employee'"`
+	PartTime       bool          `clap:"short=P,desc='Mark as part-time employee'"`
+	Apprenticeship bool          `clap:"short=A,desc='Indicates the employee is joining as an apprentice'"`
+	Salary         int           `clap:"default=9999,desc='Starting salary in USD'"`
+	TeamsChannel   []string      `clap:"long=notify,short=N,desc='Slack team channels to notify (e.g., #eng, #ops)'"`
+	EmployeeID     string        `clap:"positional,mandatory,desc='Unique employee ID'"`
+	Department     []string      `clap:"positional,mandatory,desc='Department name (e.g., Engineering, HR)'"`
+	LongOmitted    string        `clap:"mandatory,long=,desc='No long name for this argument'"`
+	ShortOmitted   string        `clap:"mandatory,short=,desc='No short name for this argument'"`
+	Duration       time.Duration `clap:"short=D,desc='Duration like 1h12m0s'"`
 }
 
 func main() {
 	args := Args{}
 	clap.Prog("example")
-	clap.Description("This example shall demonstrate how this command line argument parsers works.")
+	clap.Description("This example shall demonstrate how this cmd line argument parsers works.")
 	clap.Example(`example --name "John Doe" --email john@company.com -t "Designer" -F --salary 85000 -N "#design" -N "#it" D12345 Marketing Engineering`)
 	clap.Parse(&args)
 

@@ -33,7 +33,7 @@ func TestMandatoryArg(t *testing.T) {
 func TestDefaultValue(t *testing.T) {
 	withArgs([]string{"prog"}, func() {
 		type Args struct {
-			Salary int `clap:"default-value=9999"`
+			Salary int `clap:"default=9999"`
 		}
 
 		args := Args{}
@@ -200,7 +200,7 @@ func TestPositionalDefault(t *testing.T) {
 	withArgs([]string{"prog", "EMP999"}, func() {
 		type Args struct {
 			EmployeeID string `clap:"positional,mandatory"`
-			Department string `clap:"positional,default-value=Design"`
+			Department string `clap:"positional,default=Design"`
 		}
 
 		args := Args{}
@@ -279,7 +279,7 @@ func TestDurationArg(t *testing.T) {
 func TestDefaultValueWithBackslash(t *testing.T) {
 	withArgs([]string{"prog"}, func() {
 		type Args struct {
-			Path string `clap:"default-value='C:\\\\Users\\\\user\\\\My Documents\\\\',description='The path'"`
+			Path string `clap:"default='C:\\\\Users\\\\user\\\\My Documents\\\\',desc='The path'"`
 		}
 
 		args := Args{}
@@ -295,7 +295,7 @@ func TestSubCommands1(t *testing.T) {
 	withArgs([]string{"prog", "--insecure", "add", "--name", "mymodule"}, func() {
 		type Args struct {
 			Insecure bool
-			Command  string `clap:"command,mandatory"`
+			Command  string `clap:"cmd,mandatory"`
 
 			Add struct {
 				Name string
@@ -323,7 +323,7 @@ func TestSubCommands2(t *testing.T) {
 	withArgs([]string{"prog", "--insecure", "remove", "--name", "mymodule", "--force"}, func() {
 		type Args struct {
 			Insecure bool
-			Command  string `clap:"command,mandatory"`
+			Command  string `clap:"cmd,mandatory"`
 
 			Add struct {
 				Name string
@@ -353,10 +353,10 @@ func TestSubCommands2(t *testing.T) {
 func TestSubSubCommands(t *testing.T) {
 	withArgs([]string{"prog", "files", "list", "-H"}, func() {
 		type Args struct {
-			Command string `clap:"command,mandatory"`
+			Command string `clap:"cmd,mandatory"`
 
 			Files struct {
-				Command string `clap:"command,mandatory"`
+				Command string `clap:"cmd,mandatory"`
 
 				List struct {
 					ShowHidden bool `clap:"short=H"`

@@ -102,34 +102,62 @@ func Sprintln(a ...any) string {
 func stoc(s string) ansi.Decor {
 	//nofmt:enable
 	switch s {
-	case "r":  return ansi.DecorRed
-	case "g":  return ansi.DecorGreen
-	case "y":  return ansi.DecorYellow
-	case "b":  return ansi.DecorBlue
-	case "p":  return ansi.DecorPurple
-	case "c":  return ansi.DecorCyan
-	case "B":  return ansi.DecorBold
-	case "rB": return ansi.DecorRed + ansi.DecorBold
-	case "gB": return ansi.DecorGreen + ansi.DecorBold
-	case "yB": return ansi.DecorYellow + ansi.DecorBold
-	case "bB": return ansi.DecorBlue + ansi.DecorBold
-	case "pB": return ansi.DecorPurple + ansi.DecorBold
-	case "cB": return ansi.DecorCyan + ansi.DecorBold
-	case "U":  return ansi.DecorUnderline
-	case "rU": return ansi.DecorRed + ansi.DecorUnderline
-	case "gU": return ansi.DecorGreen + ansi.DecorUnderline
-	case "yU": return ansi.DecorYellow + ansi.DecorUnderline
-	case "bU": return ansi.DecorBlue + ansi.DecorUnderline
-	case "pU": return ansi.DecorPurple + ansi.DecorUnderline
-	case "cU": return ansi.DecorCyan + ansi.DecorUnderline
-	case "R":  return ansi.DecorReversed
-	case "rR": return ansi.DecorRed + ansi.DecorReversed
-	case "gR": return ansi.DecorGreen + ansi.DecorReversed
-	case "yR": return ansi.DecorYellow + ansi.DecorReversed
-	case "bR": return ansi.DecorBlue + ansi.DecorReversed
-	case "pR": return ansi.DecorPurple + ansi.DecorReversed
-	case "cR": return ansi.DecorCyan + ansi.DecorReversed
-	default: panic(fmt.Errorf("cannot map string '%s' to ansi Decorcolor", s))
+	case "r":
+		return ansi.DecorRed
+	case "g":
+		return ansi.DecorGreen
+	case "y":
+		return ansi.DecorYellow
+	case "b":
+		return ansi.DecorBlue
+	case "p":
+		return ansi.DecorPurple
+	case "c":
+		return ansi.DecorCyan
+	case "B":
+		return ansi.DecorBold
+	case "rB":
+		return ansi.DecorRed + ansi.DecorBold
+	case "gB":
+		return ansi.DecorGreen + ansi.DecorBold
+	case "yB":
+		return ansi.DecorYellow + ansi.DecorBold
+	case "bB":
+		return ansi.DecorBlue + ansi.DecorBold
+	case "pB":
+		return ansi.DecorPurple + ansi.DecorBold
+	case "cB":
+		return ansi.DecorCyan + ansi.DecorBold
+	case "U":
+		return ansi.DecorUnderline
+	case "rU":
+		return ansi.DecorRed + ansi.DecorUnderline
+	case "gU":
+		return ansi.DecorGreen + ansi.DecorUnderline
+	case "yU":
+		return ansi.DecorYellow + ansi.DecorUnderline
+	case "bU":
+		return ansi.DecorBlue + ansi.DecorUnderline
+	case "pU":
+		return ansi.DecorPurple + ansi.DecorUnderline
+	case "cU":
+		return ansi.DecorCyan + ansi.DecorUnderline
+	case "R":
+		return ansi.DecorReversed
+	case "rR":
+		return ansi.DecorRed + ansi.DecorReversed
+	case "gR":
+		return ansi.DecorGreen + ansi.DecorReversed
+	case "yR":
+		return ansi.DecorYellow + ansi.DecorReversed
+	case "bR":
+		return ansi.DecorBlue + ansi.DecorReversed
+	case "pR":
+		return ansi.DecorPurple + ansi.DecorReversed
+	case "cR":
+		return ansi.DecorCyan + ansi.DecorReversed
+	default:
+		panic(fmt.Errorf("cannot map string '%s' to ansi Decorcolor", s))
 	}
 	//nofmt:disable
 }

@@ -7,20 +7,20 @@ import (
 )
 
 type Args struct {
-	Command any `clap:"command,mandatory,description='The command to run'"`
+	Command any `clap:"cmd,mandatory,desc='The cmd to run'"`
 
-	List any `clap:"subcommand,description='List all members'"`
+	List any `clap:"cmdopt,desc='List all members'"`
 
 	Add struct {
 		Name string `clap:"positional,mandatory"`
-	} `clap:"subcommand,description='Adds a member'"`
+	} `clap:"cmdopt,desc='Adds a member'"`
 
 	Remove struct {
 		Name string `clap:"positional,mandatory"`
-	} `clap:"subcommand,description='Removes a member'"`
+	} `clap:"cmdopt,desc='Removes a member'"`
 
-	Foo any `clap:"subcommand,description='The foo command'"`
-	Bar any `clap:"subcommand,description='The bar command'"`
+	Foo any `clap:"cmdopt,desc='The foo cmd'"`
+	Bar any `clap:"cmdopt,desc='The bar cmd'"`
 }
 
 func main() {
