@@ -152,7 +152,7 @@ func parse(osArgs []string, strct any) {
 					short = strings.Split(tagValue, "=")[1]
 				} else if strings.HasPrefix(tagValue, "long=") {
 					long = strings.Split(tagValue, "=")[1]
-				} else if strings.HasPrefix(tagValue, "conflicts-with=") {
+				} else if strings.HasPrefix(tagValue, "conflicts=") {
 					conflictsWith = strings.Split(strings.Split(tagValue, "=")[1], ",")
 				} else if strings.HasPrefix(tagValue, "default=") {
 					defaultValue = strings.Split(tagValue, "=")[1]
@@ -169,7 +169,7 @@ func parse(osArgs []string, strct any) {
 					cmdopt = true
 					positional = true
 				} else {
-					developerErr(fmt.Sprintf("unknown tag value: %s. Valid tage values are: short, long, conflicts-with, default, desc, mandatory, positional, cmd, cmdopt.", tagValue))
+					developerErr(fmt.Sprintf("unknown tag value: %s. Valid tage values are: short, long, conflicts, default, desc, mandatory, positional, cmd, cmdopt.", tagValue))
 				}
 			}
 		}

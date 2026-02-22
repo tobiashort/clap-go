@@ -99,7 +99,7 @@ func TestConflictingArgs(t *testing.T) {
 		}()
 
 		type Args struct {
-			FullTime bool `clap:"short=F,long=full-time,conflicts-with=PartTime"`
+			FullTime bool `clap:"short=F,long=full-time,conflicts=PartTime"`
 			PartTime bool `clap:"short=P"`
 		}
 

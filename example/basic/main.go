@@ -11,7 +11,7 @@ type Args struct {
 	Name           string        `clap:"mandatory,desc='Full name of the new employee'"`
 	Email          string        `clap:"desc='Company email address to assign'"`
 	Position       string        `clap:"long=title,short=t,desc='Job title (e.g., Backend Engineer)'"`
-	FullTime       bool          `clap:"short=F,conflicts-with=PartTime,desc='Mark as full-time employee'"`
+	FullTime       bool          `clap:"short=F,conflicts=PartTime,desc='Mark as full-time employee'"`
 	PartTime       bool          `clap:"short=P,desc='Mark as part-time employee'"`
 	Apprenticeship bool          `clap:"short=A,desc='Indicates the employee is joining as an apprentice'"`
 	Salary         int           `clap:"default=9999,desc='Starting salary in USD'"`
