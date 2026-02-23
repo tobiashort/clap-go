@@ -266,17 +266,16 @@ osArgsLoop:
 				givenPositionalArgs = append(givenPositionalArgs, positionalArg)
 				parsePositionalAtIndex(osArgs, positionalArg, strct, i)
 				if positionalArg.cmd {
-					for fi := range strctType.NumField() {
-						field := strctType.Field(fi)
-						if toKebabCase(field.Name) == osArgs[i] {
+					for _, arg := range programPositionalArgs {
+						if arg.cmdopt && osArgs[i] == toKebabCase(arg.name) {
 							prog = prog + " " + osArgs[i]
 							desc = ""
 							example = ""
-							if field.Type.Kind() == reflect.Struct {
-								inst := reflect.New(field.Type)
+							if arg.kind == reflect.Struct {
+								inst := reflect.New(arg.type_)
 								parse(osArgs[i:], inst.Interface())
-								setStruct(strct, field.Name, inst.Elem().Interface())
-							} else if field.Type.Kind() == reflect.Interface {
+								setStruct(strct, arg.name, inst.Elem().Interface())
+							} else if arg.kind == reflect.Interface {
 								parse(osArgs[i:], new(struct{}))
 							}
 							break osArgsLoop
@@ -547,12 +546,22 @@ func checkForInvalidPositionalArguments(programPositionalArgs []arg) {
 		if arg.mandatory && optionalSeen {
 			developerErr("you cannot have mandatory positional arguments after optional ones: " + arg.name)
 		}
+		if arg.cmd && arg.kind != reflect.Interface {
+			developerErr("cmd must be of type any: " + arg.name)
+		}
 		if arg.cmd && cmdSeen {
 			developerErr("you cannot have multiple cmds on the same level: " + arg.name)
 		}
 		if arg.cmd && arg.cmdopt {
 			developerErr("you cannot declare a field as a cmd and a cmdopt: " + arg.name)
 		}
+		if arg.cmdopt && arg.kind != reflect.Interface && arg.kind != reflect.Struct {
+			developerErr("cmdopt must be of type any or struct: " + arg.name)
+		}
+		if arg.cmdopt && arg.kind == reflect.Struct && arg.type_.NumField() == 0 {
+			developerErr("empty struct not allowed for cmdopt, use any type: " + arg.name)
+		}
+		// TODO cmd must be any, cmdopt any or struct, but not empty struct!
 		if arg.kind == reflect.Slice {
 			sliceSeen = true
 		}

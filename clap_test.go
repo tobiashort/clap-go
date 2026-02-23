@@ -295,16 +295,16 @@ func TestSubCommands1(t *testing.T) {
 	withArgs([]string{"prog", "--insecure", "add", "--name", "mymodule"}, func() {
 		type Args struct {
 			Insecure bool
-			Command  string `clap:"cmd,mandatory"`
+			Command  any `clap:"cmd,mandatory"`
 
 			Add struct {
 				Name string
-			}
+			} `clap:"cmdopt"`
 
 			Remove struct {
 				Name  string
 				Force bool
-			}
+			} `clap:"cmdopt"`
 		}
 
 		args := Args{}
@@ -323,16 +323,16 @@ func TestSubCommands2(t *testing.T) {
 	withArgs([]string{"prog", "--insecure", "remove", "--name", "mymodule", "--force"}, func() {
 		type Args struct {
 			Insecure bool
-			Command  string `clap:"cmd,mandatory"`
+			Command  any `clap:"cmd,mandatory"`
 
 			Add struct {
 				Name string
-			}
+			} `clap:"cmdopt"`
 
 			Remove struct {
 				Name  string
 				Force bool
-			}
+			} `clap:"cmdopt"`
 		}
 
 		args := Args{}
@@ -353,15 +353,15 @@ func TestSubCommands2(t *testing.T) {
 func TestSubSubCommands(t *testing.T) {
 	withArgs([]string{"prog", "files", "list", "-H"}, func() {
 		type Args struct {
-			Command string `clap:"cmd,mandatory"`
+			Command any `clap:"cmd,mandatory"`
 
 			Files struct {
-				Command string `clap:"cmd,mandatory"`
+				Command any `clap:"cmd,mandatory"`
 
 				List struct {
 					ShowHidden bool `clap:"short=H"`
-				}
-			}
+				} `clap:"cmdopt"`
+			} `clap:"cmdopt"`
 		}
 
 		args := Args{}
@@ -370,5 +370,59 @@ func TestSubSubCommands(t *testing.T) {
 		if !args.Files.List.ShowHidden {
 			t.Fatalf("Expected Files.List.Hidden == true")
 		}
+	})
+}
+
+func TestCmdNotAnyFail(t *testing.T) {
+	withArgs([]string{"prog", "ls"}, func() {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Fatal("expected panic, got none")
+			}
+		}()
+
+		type Args struct {
+			Command string `clap:"cmd"`
+			Ls      any    `clap:"cmdopt"`
+		}
+
+		args := Args{}
+		parse(os.Args, &args)
+	})
+}
+
+func TestCmdOptNotAnyFail(t *testing.T) {
+	withArgs([]string{"prog", "ls"}, func() {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Fatal("expected panic, got none")
+			}
+		}()
+
+		type Args struct {
+			Command any    `clap:"cmd"`
+			Ls      string `clap:"cmdopt"`
+		}
+
+		args := Args{}
+		parse(os.Args, &args)
+	})
+}
+
+func TestCmdOptEmptyStructFail(t *testing.T) {
+	withArgs([]string{"prog", "ls"}, func() {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Fatal("expected panic, got none")
+			}
+		}()
+
+		type Args struct {
+			Command any      `clap:"cmd"`
+			Ls      struct{} `clap:"cmdopt"`
+		}
+
+		args := Args{}
+		parse(os.Args, &args)
 	})
 }
